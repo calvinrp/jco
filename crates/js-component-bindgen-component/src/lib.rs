@@ -57,8 +57,12 @@ impl From<AsyncMode> for js_component_bindgen::AsyncMode {
     fn from(value: AsyncMode) -> Self {
         match value {
             AsyncMode::Sync => js_component_bindgen::AsyncMode::Sync,
-            AsyncMode::Jspi(AsyncImportsExports{ imports, exports }) => js_component_bindgen::AsyncMode::JavaScriptPromiseIntegration { imports, exports },
-            AsyncMode::Asyncify(AsyncImportsExports{ imports, exports }) => js_component_bindgen::AsyncMode::Asyncify { imports, exports },
+            AsyncMode::Jspi(AsyncImportsExports { imports, exports }) => {
+                js_component_bindgen::AsyncMode::JavaScriptPromiseIntegration { imports, exports }
+            }
+            AsyncMode::Asyncify(AsyncImportsExports { imports, exports }) => {
+                js_component_bindgen::AsyncMode::Asyncify { imports, exports }
+            }
         }
     }
 }
@@ -128,7 +132,7 @@ impl Guest for JsComponentBindgenComponent {
         // Add features if specified
         match opts.features {
             Some(EnabledFeatureSet::List(ref features)) => {
-                for f in features.into_iter() {
+                for f in features.iter() {
                     resolve.features.insert(f.to_string());
                 }
             }
