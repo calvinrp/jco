@@ -235,13 +235,18 @@ const symbolDispose = Symbol.dispose || Symbol.for("dispose");
  * @typedef {Uint8Array} FieldValue
  */
 
+/**
+ * HTTP fields
+ * (wasi:http/types#fields)
+ *
+ */
 export class Fields {
   headers;
   immutable;
 
   /**
-   * @param {Headers|undefined} headers
-   * @param {boolean|undefined} immutable
+   * @param {Headers} [headers]
+   * @param {boolean} [immutable]
    */
   constructor(headers = new Headers(), immutable = false) {
     this.headers = headers;
@@ -428,15 +433,49 @@ export class IncomingRequest {
   }
 }
 
+/**
+ * Helper that represents a wasi:http/types#outgoing-request, with extra functionality
+ * for conversions between WASI and web standard types.
+ */
 export class OutgoingRequest {
+  /**
+   * Headers that should be sent with the outgoing request
+   * @type {Fields}
+   */
   #headers;
+  /**
+   * Method of the outgoing request (maps to wasi:http/types#method)
+   *
+   * @type {string}
+   */
   #method;
+  /**
+   * Path (with query) of the outgoing request
+   *
+   * @type {string}
+   */
   #pathWithQuery;
+  /**
+   * Scheme of the request
+   *
+   * @type {string}
+   */
   #scheme;
+  /**
+   * Authority of the request
+   * @type {string}
+   */
   #authority;
+  /**
+   * Body of the request (maps to a wasi:http/types#outgoing-body)
+   *
+   * @type {OutgoingBody}
+   */
   #body;
 
   /**
+   * Create a new `OutgoingBody`
+   *
    * @param {Fields} headers
    */
   constructor(headers) {
@@ -444,6 +483,7 @@ export class OutgoingRequest {
     this.#headers = headers;
     this.#body = new OutgoingBody();
   }
+
   /**
    * @returns {OutgoingBody}
    */
@@ -648,7 +688,14 @@ export class OutgoingResponse {
   }
 }
 
+/**
+ * Outgoing body of the request
+ */
 export class OutgoingBody {
+  /**
+   * Whether the body is finished or not
+   * @type {boolean}
+   */
   finished;
   stream;
 
@@ -672,12 +719,33 @@ export class OutgoingBody {
   }
 }
 
+export class NotReadyYetError extends Error {
+  constructor(m) {
+    super(m);
+  }
+}
+
+/**
+ * Performs external request (e.x `wasi:http/outgoing-handler.handle`)
+ */
 export class FutureIncomingResponse {
+  /** Promise that represents the request in-flight */
   #promise;
+  /** Resolved data produced by the response only available after successful resolution */
   #resolvedResponse;
+  /** Whether or not the promise is resolved or not */
   #ready = false;
+  /** Error (if one has occurred) that maps to the wasi:http/types#error-code variant */
   #error;
 
+  /**
+   * Create a new FutureIncomingResponse
+   *
+   * The HTTP request is started upon creation of the FutureIncomingResponse object.
+   *
+   * @param {OutgoingRequest} request
+   * @returns void
+   */
   constructor(request) {
     try {
       this.#promise = fetch(request.toRequest()).then((response) => {
@@ -685,6 +753,7 @@ export class FutureIncomingResponse {
         this.#resolvedResponse = response;
       });
     } catch (err) {
+      // TODO: some mechanism for enabling/disabling console logging at the browser level?
       console.error(err);
       this.#promise = Promise.resolve();
       this.#ready = true;
@@ -693,11 +762,19 @@ export class FutureIncomingResponse {
     }
   }
 
+  /**
+   * Enable subscribing to this FutureIncomingResponse
+   * from WASI contexts by producing a Pollable.
+   */
   subscribe() {
     return new Pollable(this.#promise);
   }
+
+  /**
+   * Retrieve the repsonse from this incoming response
+   */
   get() {
-    if (!this.#ready) return;
+    if (!this.#ready) return { tag: "err", val: new NotReadyYetError("FutureIncomingRequest is not ready yet") };
     if (this.#error) return { tag: "err", val: this.#error };
 
     const res = this.#resolvedResponse;

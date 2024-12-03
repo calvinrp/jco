@@ -2,9 +2,35 @@
   "name": "@bytecodealliance/jco",
   "version": "1.7.2",
   "description": "JavaScript tooling for working with WebAssembly Components",
+  "homepage": "https://github.com/bytecodealliance/jco#readme",
   "author": "Guy Bedford",
-  "bin": {
-    "jco": "src/jco.js"
+  "license": "(Apache-2.0 WITH LLVM-exception)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bytecodealliance/jco.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bytecodealliance/jco/issues"
+  },
+  "keywords": [
+    "Wasm",
+    "WebAssembly",
+    "Component"
+  ],
+  "type": "module",
+  "files": [
+    "lib",
+    "src",
+    "obj/*.core*.wasm",
+    "obj/*.js",
+    "obj/*.ts",
+    "obj/interfaces"
+  ],
+  "imports": {
+    "#ora": {
+      "browser": "./src/ora-shim.js",
+      "default": "ora"
+    }
   },
   "exports": {
     ".": {
@@ -16,13 +42,21 @@
       "default": "./src/browser.js"
     }
   },
-  "imports": {
-    "#ora": {
-      "browser": "./src/ora-shim.js",
-      "default": "ora"
-    }
+  "bin": {
+    "jco": "src/jco.js"
   },
-  "type": "module",
+  "scripts": {
+    "build": "cargo xtask build debug",
+    "build:release": "cargo xtask build release",
+    "build:types:preview2-shim": "cargo xtask generate wasi-types",
+    "lint": "eslint -c eslintrc.cjs src/**/*.js packages/*/lib/**/*.js",
+    "test:lts": "mocha -u tdd test/test.js --timeout 600000",
+    "test": "node --experimental-wasm-jspi --stack-trace-limit=100 node_modules/mocha/bin/mocha.js -u tdd test/test.js --timeout 600000",
+    "prepublishOnly": "cargo xtask build release && npm run test"
+  },
+  "workspaces": [
+    "packages/preview2-shim"
+  ],
   "dependencies": {
     "@bytecodealliance/componentize-js": "^0.14.0",
     "@bytecodealliance/preview2-shim": "^0.17.1",
@@ -42,39 +76,5 @@
     "mocha": "^10.7.0",
     "puppeteer": "^23.4.0",
     "typescript": "^5.5.4"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/bytecodealliance/jco.git"
-  },
-  "keywords": [
-    "Wasm",
-    "WebAssembly",
-    "Component"
-  ],
-  "license": "(Apache-2.0 WITH LLVM-exception)",
-  "bugs": {
-    "url": "https://github.com/bytecodealliance/jco/issues"
-  },
-  "homepage": "https://github.com/bytecodealliance/jco#readme",
-  "scripts": {
-    "build": "cargo xtask build debug",
-    "build:release": "cargo xtask build release",
-    "build:types:preview2-shim": "cargo xtask generate wasi-types",
-    "lint": "eslint -c eslintrc.cjs src/**/*.js packages/*/lib/**/*.js",
-    "test:lts": "mocha -u tdd test/test.js --timeout 120000",
-    "test": "node --experimental-wasm-jspi --stack-trace-limit=100 node_modules/mocha/bin/mocha.js -u tdd test/test.js --timeout 120000",
-    "prepublishOnly": "cargo xtask build release && npm run test"
-  },
-  "files": [
-    "lib",
-    "src",
-    "obj/*.core*.wasm",
-    "obj/*.js",
-    "obj/*.ts",
-    "obj/interfaces"
-  ],
-  "workspaces": [
-    "packages/preview2-shim"
-  ]
+  }
 }

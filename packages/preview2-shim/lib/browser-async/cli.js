@@ -89,7 +89,7 @@ export const stderr = {
             if (contents[contents.length - 1] === 10) {
               contents = contents.subarray(0, contents.length - 1);
             }
-            console.error(textDecoder.decode(contents));
+            //console.error(textDecoder.decode(contents));
           },
         })
       );
@@ -133,4 +133,3 @@ export const terminalStdout = {
     return terminalStdoutInstance;
   }
 };
-

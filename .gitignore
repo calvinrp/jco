@@ -13,3 +13,6 @@ node_modules
 /tests/rundir
 /tests/output
 /tests/gen
+
+# Alternative NPM-compatible tooling
+pnpm-lock.yaml
