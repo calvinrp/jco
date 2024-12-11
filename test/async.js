@@ -85,10 +85,12 @@ export async function asyncTest(_fixtures) {
           },
         },
         jco: {
-          extraArgs: [
-            "--async-imports=something:test/test-interface#call-async",
-            "--async-exports=run-async",
-          ],
+          transpile: {
+            extraArgs: [
+              "--async-imports=something:test/test-interface#call-async",
+              "--async-exports=run-async",
+            ],
+          },
         },
       });
 
@@ -114,10 +116,12 @@ export async function asyncTest(_fixtures) {
           },
         },
         jco: {
-          extraArgs: [
-            "--async-imports=something:test/test-interface#call-async",
-            "--async-exports=run-async",
-          ],
+          transpile: {
+            extraArgs: [
+              "--async-imports=something:test/test-interface#call-async",
+              "--async-exports=run-async",
+            ],
+          }
         },
       });
 
@@ -139,10 +143,12 @@ export async function asyncTest(_fixtures) {
  * @param {function} args.testFn - Arguments for running the async test
  * @param {object} args.jco - JCO-related confguration for running the async test
  * @param {object} [args.jcoBinPath] - path to the jco binary
+ * @param {object} [args.transpile] - configuration related to transpilation
+ * @param {object} [args.transpile.extraArgs] - arguments to pass along to jco transpilation
  * @param {object} args.component - configuration for an existing component that should be transpiled
- * @param {object} args.component.name - JCO-related confguration for running the async test
- * @param {object} args.component.path - JCO-related confguration for running the async test
- * @param {object} args.component.import - JCO-related confguration for running the async test
+ * @param {object} args.component.name - name of the component
+ * @param {object} args.component.path - path to the WebAssembly binary for the existing component
+ * @param {object} args.component.import - imports that should be provided to the module at instantiation time
  */
 async function setupAsyncTest(args) {
   const {
@@ -206,7 +212,7 @@ async function setupAsyncTest(args) {
     "--instantiation=async",
     "--base64-cutoff=0",
     `--async-mode=${asyncMode}`,
-    ...(jco?.extraArgs || []),
+    ...(jco?.transpile?.extraArgs || []),
     "-o",
     outputDir
   );
