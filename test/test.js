@@ -19,7 +19,7 @@ const componentFixtures = env.COMPONENT_FIXTURES
   ? env.COMPONENT_FIXTURES.split(',')
   : (await readdir('test/fixtures/components')).filter(name => name !== 'dummy_reactor.component.wasm');
 
-import { browserTest } from './browser.js';
+import { browserTest } from './browser/test.js';
 import { codegenTest } from './codegen.js';
 import { runtimeTest } from './runtime.js';
 import { commandsTest } from './commands.js';
@@ -40,5 +40,5 @@ import { asyncTest } from './async.js';
 // await witTest();
 await asyncTest();
 
-// if (platform !== 'win32')
-//   await browserTest();
+if (platform !== 'win32')
+  await browserTest();
