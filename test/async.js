@@ -71,46 +71,35 @@ export async function asyncTest(_fixtures) {
       ok(source.toString().includes("export { test"));
     });
 
-    if (typeof WebAssembly.Suspending === 'function') {
-      test("Transpile with Async Mode for JSPI", async () => {
-        const name = "async_call";
-        const { stderr } = await exec(
-          jcoPath,
-          "transpile",
-          `test/fixtures/components/${name}.component.wasm`,
-          `--name=${name}`,
-          "--valid-lifting-optimization",
-          "--tla-compat",
-          "--instantiation=async",
-          "--base64-cutoff=0",
-          "--async-mode=jspi",
-          "--async-imports=something:test/test-interface#call-async",
-          "--async-exports=run-async",
-          "-o",
-          outDir
-        );
-        strictEqual(stderr, "");
-        await writeFile(
-          `${outDir}/package.json`,
-          JSON.stringify({ type: "module" })
-        );
-        const m = await import(`${pathToFileURL(outDir)}/${name}.js`);
-        const inst = await m.instantiate(
-          undefined,
-          {
+    test("Transpile async (JSPI)", async () => {
+      const { instance, cleanup } = await setupAsyncTest({
+        component: {
+          asyncMode: "jspi",
+          name: "async_call",
+          path: resolve("test/fixtures/components/async_call.component.wasm"),
+          imports: {
             'something:test/test-interface': {
               callAsync: async () => "called async",
               callSync: () => "called sync",
             },
           },
-        );
-        strictEqual(inst.runSync instanceof AsyncFunction, false);
-        strictEqual(inst.runAsync instanceof AsyncFunction, true);
-
-        strictEqual(inst.runSync(), "called sync");
-        strictEqual(await inst.runAsync(), "called async");
+        },
+        jco: {
+          extraArgs: [
+            "--async-imports=something:test/test-interface#call-async",
+            "--async-exports=run-async",
+          ],
+        },
       });
-    }
+
+      strictEqual(instance.runSync instanceof AsyncFunction, false, "runSync() should be a sync function");
+      strictEqual(instance.runAsync instanceof AsyncFunction, true, "runAsync() should be an async function");
+
+      strictEqual(instance.runSync(), "called sync");
+      strictEqual(await instance.runAsync(), "called async");
+
+      await cleanup();
+    });
 
     test("Transpile async (asyncify)", async () => {
       const { instance, cleanup } = await setupAsyncTest({
@@ -123,11 +112,17 @@ export async function asyncTest(_fixtures) {
               callSync: () => "called sync",
             },
           },
-        }
+        },
+        jco: {
+          extraArgs: [
+            "--async-imports=something:test/test-interface#call-async",
+            "--async-exports=run-async",
+          ],
+        },
       });
 
-      strictEqual(instance.runSync instanceof AsyncFunction, false);
-      strictEqual(instance.runAsync instanceof AsyncFunction, true);
+      strictEqual(instance.runSync instanceof AsyncFunction, false, "runSync() should be a sync function");
+      strictEqual(instance.runAsync instanceof AsyncFunction, true, "runAsync() should be an async function");
 
       strictEqual(instance.runSync(), "called sync");
       strictEqual(await instance.runAsync(), "called async");
@@ -150,13 +145,13 @@ export async function asyncTest(_fixtures) {
  * @param {object} args.component.import - JCO-related confguration for running the async test
  */
 async function setupAsyncTest(args) {
-const {
-  asyncMethod: _asyncMethod,
-  testFn,
-  jco,
-  component,
-} = args;
-  const asyncMethod = _asyncMethod || "asyncify";
+  const {
+    asyncMode: _asyncMode,
+    testFn,
+    jco,
+    component,
+  } = args;
+  const asyncMode = _asyncMode || "asyncify";
   const jcoBinPath = jco?.binPath || jcoPath;
 
   let componentName = component.name;
@@ -186,53 +181,51 @@ const {
   let cleanup = async () => {
     if (componentBuildCleanup) {
       try {
-      await componentBuildCleanup();
+        await componentBuildCleanup();
       } catch {}
     }
-      try {
-        await rm(outputDir, { recursive: true });
-      } catch {}
+    try {
+      await rm(outputDir, { recursive: true });
+    } catch {}
   };
 
   // Return early if the test was intended to run on JSPI but JSPI is not enabled
-  if (asyncMethod == "jspi" && typeof WebAssembly?.Suspending !== 'function') {
+  if (asyncMode == "jspi" && typeof WebAssembly?.Suspending !== 'function') {
     await cleanup();
     throw new Error("JSPI async type skipped, but JSPI was not enabled -- please ensure test is run from an environment with JSPI integration (ex. node with the --experimental-wasm-jspi flag)");
   }
 
   // Perform transpilation
-      const { stderr } = await exec(
-        jcoBinPath,
-        "transpile",
-        componentPath,
-        `--name=${componentName}`,
-        "--valid-lifting-optimization",
-        "--tla-compat",
-        "--instantiation=async",
-        "--base64-cutoff=0",
-        "--async-mode=asyncify",
-        "--async-imports=something:test/test-interface#call-async",
-        "--async-exports=run-async",
-        ...(jco?.extraArgs || []),
-        "-o",
-        outputDir
-      );
-      strictEqual(stderr, "", `failed to run jco transpile, STDERR:\n${stderr}`);
+  const { stderr } = await exec(
+    jcoBinPath,
+    "transpile",
+    componentPath,
+    `--name=${componentName}`,
+    "--valid-lifting-optimization",
+    "--tla-compat",
+    "--instantiation=async",
+    "--base64-cutoff=0",
+    `--async-mode=${asyncMode}`,
+    ...(jco?.extraArgs || []),
+    "-o",
+    outputDir
+  );
+  strictEqual(stderr, "", `failed to run jco transpile, STDERR:\n${stderr}`);
 
-      // Write a minimal package.json
-      await writeFile(
-        `${outputDir}/package.json`,
-        JSON.stringify({ type: "module" })
-      );
+  // Write a minimal package.json
+  await writeFile(
+    `${outputDir}/package.json`,
+    JSON.stringify({ type: "module" })
+  );
 
-      // Import the transpiled JS
-      const module = await import(`${pathToFileURL(outputDir)}/${componentName}.js`);
+  // Import the transpiled JS
+  const module = await import(`${pathToFileURL(outputDir)}/${componentName}.js`);
 
-      // Instantiate the module
-      const instance = await module.instantiate(
-        undefined,
-        componentImports || {},
-      );
+  // Instantiate the module
+  const instance = await module.instantiate(
+    undefined,
+    componentImports || {},
+  );
 
   return {
     module,
@@ -243,8 +236,8 @@ const {
 
 /**
  * Helper method for building a component just in time (e.g. to use in a test)
-   *
-   */
+ *
+ */
 async function buildComponent(args) {
   const name = args?.name;
   const jsSource = args?.js?.source;
