@@ -133,6 +133,50 @@ export async function asyncTest(_fixtures) {
 
       await cleanup();
     });
+
+    // TODO: test browser embedding incoming-handler (lib/browser-async/http/incoming-handler)
+    // TODO: test browser embedding types (lib/browser-async/http/types)
+    // TODO: test browser embedding for IO erorr
+    // TODO: test browser embedding for Pollable
+    // TODO: test browser embedding for Streams
+    // TODO: test browser embedding for Random (secure)
+    // TODO: test browser embedding for Random (insecure)
+
+    // TODO: fill out `RequestOption` impl (browser-async/http/types)
+    // TODO: allow `Pollable` to be re-used (when poll is called again?? how is this triggered?)
+    // TODO: fill out browser-async sockets with "not implemented" errors (we don't have much choice but to trap here)
+
+    test("Transpile async (asyncify)", async () => {
+      const { instance, cleanup } = await setupAsyncTest({
+        component: {
+          name: "async_call",
+          path: resolve("test/fixtures/components/async_call.component.wasm"),
+          imports: {
+            'something:test/test-interface': {
+              callAsync: async () => "called async",
+              callSync: () => "called sync",
+            },
+          },
+        },
+        jco: {
+          transpile: {
+            extraArgs: [
+              "--async-imports=something:test/test-interface#call-async",
+              "--async-exports=run-async",
+            ],
+          }
+        },
+      });
+
+      strictEqual(instance.runSync instanceof AsyncFunction, false, "runSync() should be a sync function");
+      strictEqual(instance.runAsync instanceof AsyncFunction, true, "runAsync() should be an async function");
+
+      strictEqual(instance.runSync(), "called sync");
+      strictEqual(await instance.runAsync(), "called async");
+
+      await cleanup();
+    });
+
   });
 }
 
