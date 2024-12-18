@@ -26,6 +26,7 @@ world component {
 }
 `;
 
+// TODO: take an argument for JSPI vs asyncify as the mode
 export async function browserPreview2Test() {
   suite("Browser preview2", () => {
     let tmpDir, outDir, outFile, outDirUrl;
@@ -91,6 +92,7 @@ export async function browserPreview2Test() {
       }).listen(serverPort);
 
       browser = await puppeteer.launch();
+      // TODO: puppeteer enable origin flag for JSPI
     });
 
     // Per-test teardown
@@ -112,7 +114,7 @@ export async function browserPreview2Test() {
               source: `
 export const test = {
   test: () => {
-  console.log("yep");
+    console.log("yep");
   }
 }
 `,
@@ -147,7 +149,7 @@ export const test = {
         hash: `transpiled:${esModuleRelativeSourcePath}`,
       });
 
-      await cleanup();
+      // await cleanup();
     });
 
     // test('[async] wasi:http/types impl', async () => {

@@ -160,8 +160,6 @@ export async function setupAsyncTest(args) {
     JSON.stringify({ type: "module" })
   );
 
-  console.log("MODULE BUILT");
-
   // Import the transpiled JS
   const esModuleOutputPath = join(moduleOutputDir, `${componentName}.js`);
   const esModuleSourcePath = pathToFileURL(esModuleOutputPath);
@@ -172,7 +170,6 @@ export async function setupAsyncTest(args) {
     undefined,
     componentImports || {},
   );
-  console.log("Module instantiated");
 
   return {
     module,

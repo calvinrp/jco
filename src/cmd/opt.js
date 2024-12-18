@@ -74,6 +74,11 @@ export async function optimizeComponent (componentBytes, opts) {
     const args = opts?.optArgs ? [...opts.optArgs] : ['-Oz', '--low-memory-unused', '--enable-bulk-memory', '--strip-debug'];
     if (opts?.asyncMode === 'asyncify') args.push('--asyncify');
 
+    // TODO: pre-asyncify builds of starling-monkey.wasm (i.e output from SM builds)
+    // TODO: add option for custom starling-monkey.wasm to componentize-js
+    // TODO: option in JCO to skip wasm-opt in the presence of pre-asyncified starling-monkey build
+    //    - This can be detected by looking at the exports (asyncify's exports)!
+
     const optimizedCoreModules = await Promise.all(coreModules.map(async ([coreModuleStart, coreModuleEnd]) => {
       const optimized = wasmOpt({
         moduleBytes: componentBytes.subarray(coreModuleStart, coreModuleEnd),
