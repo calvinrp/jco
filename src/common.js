@@ -77,15 +77,32 @@ async function readFileCli (file, encoding) {
 }
 export { readFileCli as readFile }
 
-export async function spawnIOTmp (cmd, input, args) {
-  const tmpDir = await getTmpDir();
+/**
+ * Spawn a command that performs executes a given binary with
+ * binary output that is persisted to temporary disk
+ *
+ * Commands used with this command must take the form:
+ * ```
+ * cmd <input file> [OPTIONS] <outputFile>
+ * ```
+ *
+ * This may mean that `opts` should be an array that ends with a switch like
+ * "--output" or "-o".
+ *
+ * @param {string} cmd - Binary to execute
+ * @param {Uint8Array} input - Binary input to temporarily persist to disk
+ * @param {string[]} opts - Arguments that will be prepended between the input file and output file arguments
+ */
+export async function spawnIOTmp (cmd, input, opts) {
+  let tmpDir, inFile, outFile;
   try {
-    const inFile = resolve(tmpDir, 'in.wasm');
-    let outFile = resolve(tmpDir, 'out.wasm');
+    tmpDir = await getTmpDir();
+    inFile = resolve(tmpDir, 'in.wasm');
+    outFile = resolve(tmpDir, 'out.wasm');
 
     await writeFile(inFile, input);
 
-    const cp = spawn(argv0, [cmd, inFile, ...args, outFile], { stdio: 'pipe' });
+    const cp = spawn(argv0, [cmd, inFile, ...opts, outFile], { stdio: 'pipe' });
 
     let stderr = '';
     const p = new Promise((resolve, reject) => {
@@ -105,6 +122,8 @@ export async function spawnIOTmp (cmd, input, args) {
     var output = await readFile(outFile);
     return output;
   } finally {
-    await rm(tmpDir, { recursive: true });
+    if (tmpDir) {
+      await rm(tmpDir, { recursive: true });
+    }
   }
 }

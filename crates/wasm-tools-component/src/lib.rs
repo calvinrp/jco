@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::fs::metadata;
 use std::path::PathBuf;
+
 use wasm_encoder::{Encode, Section};
 use wasm_metadata::Producers;
 use wit_component::{ComponentEncoder, DecodedWasm, WitPrinter};
@@ -184,8 +185,12 @@ impl Guest for WasmToolsJs {
     }
 
     fn metadata_show(binary: Vec<u8>) -> Result<Vec<ModuleMetadata>, String> {
-        let metadata =
-            wasm_metadata::Metadata::from_binary(&binary).map_err(|e| format!("{:?}", e))?;
+        let metadata = wasm_metadata::Metadata::from_binary(&binary).map_err(|e| {
+            format!(
+                "failed to read wasm metadata from binary ({}bytes): {e:?}",
+                binary.len(),
+            )
+        })?;
         let mut module_metadata: Vec<ModuleMetadata> = Vec::new();
         let mut to_flatten: VecDeque<wasm_metadata::Metadata> = VecDeque::new();
         to_flatten.push_back(metadata);

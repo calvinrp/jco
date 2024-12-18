@@ -2,15 +2,21 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, basename } from 'node:path';
 import c from 'chalk-template';
 
-export async function componentize (jsSource, opts) {
+/**
+ * `jco componentize` CLI command implementation
+ *
+ * @param {string} sourcePath - Path to JS source code
+ * @param {object} opts - ComponentizeJS options
+ */
+export async function componentize (sourcePath, opts) {
   const { componentize: componentizeFn } = await eval('import("@bytecodealliance/componentize-js")');
   if (opts.disable?.includes('all')) {
     opts.disable = ['stdio', 'random', 'clocks', 'http'];
   }
-  const source = await readFile(jsSource, 'utf8');
+  const source = await readFile(sourcePath, 'utf8');
   const { component } = await componentizeFn(source, {
     enableAot: opts.aot,
-    sourceName: basename(jsSource),
+    sourceName: basename(sourcePath),
     witPath: resolve(opts.wit),
     worldName: opts.worldName,
     disableFeatures: opts.disable,

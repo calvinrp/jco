@@ -1,10 +1,8 @@
-// import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { mkdir, readFile, writeFile, rm, symlink, mkdtemp } from "node:fs/promises";
 import { createServer } from "node:http";
-import test from "node:test";
 import { tmpdir } from "node:os";
 import { resolve, normalize, sep, extname, dirname } from "node:path";
-import { ok, strictEqual } from "node:assert";
 
 import { fileURLToPath, pathToFileURL } from "url";
 import mime from 'mime';
@@ -12,6 +10,21 @@ import puppeteer from "puppeteer";
 
 import { transpile } from '../../src/api.js';
 import { exec, jcoPath, testBrowserPage, getTmpDir, getRandomPort, setupAsyncTest } from "../helpers.js";
+
+// WIT interface for a testable component (possibly dynamically generated)
+// Normally the component that adheres to this interface is expected to 
+// be called from the browser (see browser-preview2.html)
+const TEST_WIT_INTERFACE = `
+package examples:test;
+
+interface test {
+  test: func();
+}
+
+world component {
+  export test;
+}
+`;
 
 export async function browserPreview2Test() {
   suite("Browser preview2", () => {
@@ -22,8 +35,12 @@ export async function browserPreview2Test() {
       tmpDir = await getTmpDir();
       outDir = resolve(tmpDir, "out-component-dir");
       outDirUrl = pathToFileURL(outDir + '/');
+      await mkdir(outDir); 
       outFile = resolve(tmpDir, "out-component-file");
 
+      // Link the local preview2 shim directory into node_modules inside 
+      // the output directory, to enable components to access preview2 shim
+      // imports when they are imported
       const modulesDir = resolve(tmpDir, "node_modules", "@bytecodealliance");
       await mkdir(modulesDir, { recursive: true });
       await symlink(
@@ -31,15 +48,32 @@ export async function browserPreview2Test() {
         resolve(modulesDir, "preview2-shim"),
         "dir"
       );
+    });
 
-      // Run a local server on a random port
-      const serverPort = await getRandomPort();
+    // Suite teardown
+    suiteTeardown(async function () {
+      try {
+        await rm(tmpDir, { recursive: true });
+      } catch {}
+      await browser.close();
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Per-test setup
+    setup(async function() {
+      serverPort = await getRandomPort();
+
       server = createServer(async (req, res) => {
         let fileUrl;
-        if (req.url.startsWith('/tmpdir/')) {
-          fileUrl = new URL(`.${req.url.slice(7)}`, outDirUrl);
+        // Serve URLs  that start with /transpiled/ (normally requested by the browser page
+        // while running a test) with the contents of a file in the output directory of this suite
+        if (req.url.startsWith('/transpiled/')) {
+          fileUrl = new URL(`./${req.url.slice('/transpiled/'.length)}`, outDirUrl);
+        } else if (req.url.startsWith('/builtin/')) {
+          fileUrl = new URL(`./${req.url.slice('/transpiled/'.length)}`, outDirUrl);
         } else {
           fileUrl = new URL(`../${req.url}`, import.meta.url);
+          console.log("TRYING TO GET URL", fileUrl);
         }
         try {
           const html = await readFile(fileUrl);
@@ -59,14 +93,7 @@ export async function browserPreview2Test() {
       browser = await puppeteer.launch();
     });
 
-    suiteTeardown(async function () {
-      try {
-        await rm(tmpDir, { recursive: true });
-      } catch {}
-      await browser.close();
-      await new Promise((resolve) => server.close(resolve));
-    });
-
+    // Per-test teardown
     teardown(async function () {
       try {
         await rm(outDir, { recursive: true });
@@ -76,10 +103,22 @@ export async function browserPreview2Test() {
 
     test('[async] http/incoming-handler impl', async () => {
       // Build a component dynamically that uses incoming handler
-      const { moduleSourcePath, cleanup } = await setupAsyncTest({
+      const { esModuleRelativeSourcePath, cleanup } = await setupAsyncTest({
         component: {
           name: "browser_incoming_handler",
-          path: resolve("test/fixtures/components/async_call.component.wasm"),
+          build: {
+            wit: { source: TEST_WIT_INTERFACE, world: "component" },
+            js: {
+              source: `
+export const test = {
+  test: () => {
+  console.log("yep");
+  }
+}
+`,
+            },
+          },
+          outputDir: outDir,
           imports: {
             'something:test/test-interface': {
               callAsync: async () => "called async",
@@ -97,11 +136,15 @@ export async function browserPreview2Test() {
         },
       });
 
+      // console.log("PORT?", serverPort);
+      // console.log("MODULE OUTPUT TO", esModuleRelativeSourcePath);
+      // await new Promise(resolve => setTimeout(resolve, 60_000));
+
       await testBrowserPage({
         browser,
         serverPort,
-        path: "test/preview2.html",
-        hash: 'test:preview2-incoming-handler',
+        path: "browser/browser-preview2.html",
+        hash: `transpiled:${esModuleRelativeSourcePath}`,
       });
 
       await cleanup();

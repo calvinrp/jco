@@ -1,0 +1,54 @@
+<!doctype html>
+<script type="importmap">
+{
+  "imports": {
+    "@bytecodealliance/preview2-shim/cli": "/builtin/packages/preview2-shim/lib/browser/cli.js",
+    "@bytecodealliance/preview2-shim/clocks": "/builtin/packages/preview2-shim/lib/browser/clocks.js",
+    "@bytecodealliance/preview2-shim/filesystem": "/builtin/packages/preview2-shim/lib/browser/filesystem.js",
+    "@bytecodealliance/preview2-shim/http": "/builtin/packages/preview2-shim/lib/browser/http.js",
+    "@bytecodealliance/preview2-shim/io": "/builtin/packages/preview2-shim/lib/browser/io.js",
+    "@bytecodealliance/preview2-shim/random": "/builtin/packages/preview2-shim/lib/browser/random.js",
+    "@bytecodealliance/preview2-shim/sockets": "/builtin/packages/preview2-shim/lib/browser/sockets.js",
+  }
+}
+</script>
+<script type="module">
+  //import "@bytecodealliance/preview2-shim/cli";
+  //import "@bytecodealliance/preview2-shim/clocks";
+  //import "@bytecodealliance/preview2-shim/filesystem";
+  //import "@bytecodealliance/preview2-shim/http";
+  //import "@bytecodealliance/preview2-shim/io";
+  //import "@bytecodealliance/preview2-shim/random";
+  //import "@bytecodealliance/preview2-shim/sockets";
+
+  // Prefix used in URL hash to direct the backend test server to serve up
+  // a specific (transpiled) JS lib
+  const HASH_PREFIX_DYNAMIC_COMPONENT = 'transpiled:'
+
+  const testName = window.location.hash.slice(1);
+  document.body.innerHTML = '<h1>Running</h1>';
+
+ // Run tests on components in the tmpdir directory (as reflected by the backing web server)
+ if (testName.startsWith(HASH_PREFIX_DYNAMIC_COMPONENT)) {
+   const testModule = `/transpiled/${testName.slice(HASH_PREFIX_DYNAMIC_COMPONENT.length)}`;
+   try {
+     const mod = await import(testModule);
+     if (!mod.test)
+       throw new Error(`Expected test module "${testModule}" to export a "test" function`);
+     mod.test();
+     ok();
+   } catch (e) {
+     err(e.toString() + `\nrunning "${testModule}"`);
+   }
+ } else {
+   err(`Unknown test case "${testName}"`);
+ }
+
+  function ok () {
+    document.body.innerHTML = '<h1>OK</h1>';
+  }
+
+  function err (e) {
+    document.body.innerHTML = `<h1>Error: ${e}`;
+  }
+</script>

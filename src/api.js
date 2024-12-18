@@ -12,7 +12,6 @@ const {
 
 export { optimizeComponent as opt } from './cmd/opt.js';
 export { transpileComponent as transpile, typesComponent as types } from './cmd/transpile.js';
-export { componentize } from './cmd/componentize.js';
 
 /**
  * @param {Parameters<import('../obj/wasm-tools.js').print>[0]} binary

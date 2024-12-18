@@ -1,4 +1,5 @@
 // import { deepStrictEqual, ok, strictEqual } from "node:assert";
+import { URL } from "node:url";
 import { mkdir, readFile, writeFile, rm, symlink, mkdtemp } from "node:fs/promises";
 import { createServer } from "node:http";
 import test from "node:test";
@@ -39,7 +40,7 @@ export async function browserWebIdlTest() {
         if (req.url.startsWith('/tmpdir/')) {
           fileUrl = new URL(`.${req.url.slice(7)}`, outDirUrl);
         } else {
-          fileUrl = new URL(`../${req.url}`, import.meta.url);
+          fileUrl = new URL(`../../${req.url}`, import.meta.url);
         }
         try {
           const html = await readFile(fileUrl);
