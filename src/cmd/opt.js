@@ -127,8 +127,6 @@ export async function optimizeComponent (componentBytes, opts) {
     // truncate to the bytes written
     outComponentBytes = outComponentBytes.subarray(0, nextWritePos);
 
-    console.log("DOING THE PARSE VERIFICATIONS");
-
     // verify it still parses ok
     try {
       await print(outComponentBytes);

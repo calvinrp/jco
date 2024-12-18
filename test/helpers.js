@@ -222,6 +222,7 @@ export async function buildComponent(args) {
     wit: witSourcePath,
     worldName: witWorld,
     out: outputWasmPath,
+    quiet: true,
     // Add in optional raw options object to componentize
     ...(args.componentizeOpts || {}),
   });
@@ -261,10 +262,8 @@ export async function testBrowserPage(args) {
   const body = await page.locator('body').waitHandle();
 
   let bodyHtml = await body.evaluate(el => el.innerHTML);
-  console.log("BEFORE");
   while (bodyHtml === '<h1>Running</h1>') {
     bodyHtml = await body.evaluate(el => el.innerHTML);
-    console.log("DURING, BODY HTML", bodyHtml);
   }
   strictEqual(bodyHtml, '<h1>OK</h1>');
   await page.close();

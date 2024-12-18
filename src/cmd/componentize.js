@@ -8,7 +8,7 @@ import c from 'chalk-template';
  * @param {string} sourcePath - Path to JS source code
  * @param {object} opts - ComponentizeJS options
  */
-export async function componentize (sourcePath, opts) {
+export async function componentize(sourcePath, opts) {
   const { componentize: componentizeFn } = await eval('import("@bytecodealliance/componentize-js")');
   if (opts.disable?.includes('all')) {
     opts.disable = ['stdio', 'random', 'clocks', 'http'];
@@ -24,5 +24,7 @@ export async function componentize (sourcePath, opts) {
     preview2Adapter: opts.preview2Adapter,
   });
   await writeFile(opts.out, component);
-  console.log(c`{green OK} Successfully written {bold ${opts.out}}.`);
+  if (!opts.quiet) {
+    console.log(c`{green OK} Successfully written {bold ${opts.out}}.`);
+  }
 }
