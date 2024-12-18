@@ -1,6 +1,6 @@
 import { env, argv, execArgv } from "node:process";
 import { createServer } from "node:net";
-import { join, resolve, normalize, sep, relative } from "node:path";
+import { join, resolve, normalize, sep, relative, dirname } from "node:path";
 import { mkdtemp, writeFile, stat, mkdir, readFile } from "node:fs/promises";
 import { ok, strictEqual } from "node:assert";
 import { spawn } from "node:child_process";
