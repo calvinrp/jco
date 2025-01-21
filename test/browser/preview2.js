@@ -10,8 +10,17 @@ import {
 } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join, resolve, normalize, sep, extname, dirname } from "node:path";
+import {
+  join,
+  resolve,
+  normalize,
+  sep,
+  extname,
+  dirname,
+  relative,
+} from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { extract } from "tar";
 
 import mime from "mime";
 import puppeteer from "puppeteer";
@@ -164,77 +173,20 @@ export async function browserPreview2Test() {
     // the necessary WASI compliant shims in order for the component that is doing the exporting
     // to use it.
     test("[async] guest http/incoming-handler export ", async () => {
-      const { esModuleRelativeSourcePath, cleanup } = await setupAsyncTest({
-        component: {
-          name: "browser_incoming_handler",
-          build: {
-            wit: {
-              world: "component",
-              // NOTE: these deps will go under wit/deps in the ephemeral component that is
-              // used for this test
-              deps: [
-                {
-                  srcPath: join(FIXTURES_WASI_0_2_2_DIR, "wasi_http@0.2.2.wit"),
-                },
-                { srcPath: join(FIXTURES_WASI_0_2_2_DIR, "wasi_io@0.2.2.wit") },
-                {
-                  srcPath: join(
-                    FIXTURES_WASI_0_2_2_DIR,
-                    "wasi_clocks@0.2.2.wit",
-                  ),
-                },
-                {
-                  srcPath: join(
-                    FIXTURES_WASI_0_2_2_DIR,
-                    "wasi_random@0.2.2.wit",
-                  ),
-                },
-                {
-                  srcPath: join(
-                    FIXTURES_WASI_0_2_2_DIR,
-                    "wasi_filesystem@0.2.2.wit",
-                  ),
-                },
-                {
-                  srcPath: join(FIXTURES_WASI_0_2_2_DIR, "wasi_cli@0.2.2.wit"),
-                },
-                {
-                  srcPath: join(
-                    FIXTURES_WASI_0_2_2_DIR,
-                    "wasi_sockets@0.2.2.wit",
-                  ),
-                },
-              ],
-              source: await readFile(
-                join(
-                  FIXTURES_COMPONENTS_JS_DIR,
-                  "browser-incoming-handler",
-                  "component.wit",
-                ),
-              ),
-            },
-            js: {
-              source: await readFile(
-                join(
-                  FIXTURES_COMPONENTS_JS_DIR,
-                  "browser-incoming-handler",
-                  "component.js",
-                ),
-              ),
-            },
-          },
-          outputDir: outDir,
-          // We skip instantiation since the *browser* will instantiate the module (w/ relevant shims)
-          skipInstantiation: true,
-        },
-        jco: {
-          transpile: {
-            extraArgs: ["--async-exports=wasi:http/incoming-handler#handle"],
-          },
-        },
+      const componentName = "browser-incoming-handler";
+      const tarball = await extract({
+        cwd: outDir, // Output directory for this test
+        f: join(
+          FIXTURES_COMPONENTS_JS_DIR,
+          componentName,
+          "transpiled-async.tar.gz",
+        ),
       });
+      const moduleName = componentName.toLowerCase().replaceAll("-", "_");
+      const moduleRelPath = `${moduleName}/${moduleName}.js`;
 
-      // Load the test (in effect, running the test against the component)'
+      // Load the test page in the browser, which will trigger tests against
+      // the component and/or related browser polyfills
       const {
         page,
         output: { json },
@@ -242,7 +194,7 @@ export async function browserPreview2Test() {
         browser,
         serverPort,
         path: "fixtures/browser/test-pages/wasi-http-incoming-handler.guest-export.async.preview2.html",
-        hash: `transpiled:${esModuleRelativeSourcePath}`,
+        hash: `transpiled:${moduleRelPath}`,
       });
 
       // Check the output expected to be returned from handle of the
@@ -250,7 +202,6 @@ export async function browserPreview2Test() {
       deepStrictEqual(json, { responseText: "Hello from Javascript!" });
 
       await page.close();
-      await cleanup();
     });
 
     // test('[async] wasi:http/types impl', async () => {

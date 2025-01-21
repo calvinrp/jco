@@ -438,7 +438,7 @@ export async function loadTestPage(args) {
   try {
     testOutputJSON = JSON.parse(raw);
   } catch (err) {
-    log(`failed to parse JSON for body HTML: ${e}`);
+    log(`failed to parse JSON for body HTML: ${err}`);
   }
 
   return {
