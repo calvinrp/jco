@@ -198,7 +198,7 @@ export async function setupAsyncTest(args) {
     asyncMode,
     wasiShim: true,
     outDir: moduleOutputDir,
-    ...(jco?.transpile?.extraArgs || []),
+    ...(jco?.transpile?.extraArgs || {}),
   };
 
   // If we used a pre-optimized build, then we can set that before transpiling
