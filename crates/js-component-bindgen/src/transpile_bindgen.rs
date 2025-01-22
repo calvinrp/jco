@@ -1092,14 +1092,13 @@ impl<'a> Instantiator<'a, '_> {
             Some(InstantiationMode::Async) | None => {
                 uwriteln!(
                     self.src.js_init,
-                    "({{ exports: exports{iu32} }} = yield {instantiate}({maybe_async_module}module{}{imports}));",
+                    "({{ exports: exports{iu32} }} = yield {instantiate}(yield module{}{imports}));",
                     idx.as_u32(),
                     instantiate = if self.use_asyncify {
                         self.gen.intrinsic(Intrinsic::AsyncifyAsyncInstantiate)
                     } else {
                         instantiate
                     },
-                    maybe_async_module = "yield "
                 )
             }
 
