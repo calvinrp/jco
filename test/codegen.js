@@ -26,23 +26,27 @@ export async function readFlags (fixture) {
 export async function codegenTest (fixtures) {
   suite(`Transpiler codegen`, () => {
     for (const fixture of fixtures) {
-      const testName = fixture.replace(/(\.component)?\.(wasm|wat)$/, '');
+      const name = fixture.replace(/(\.component)?\.(wasm|wat)$/, '');
 
-      test(`${testName} transpile`, async () => {
-        const flags = await readFlags(`test/runtime/${testName}.ts`);
-        var { stderr } = await exec(jcoPath, 'transpile', `test/fixtures/components/${fixture}`, '--name', testName, ...flags, '-o', `test/output/${testName}`);
-        strictEqual(stderr, '');
-      });
+      for (const testFile of (readdirSync('test/runtime/')).filter(testFile => testFile.startsWith(`${name}.`))) {
+        const testName= testFile.replace(/\.ts$/, '');
 
-      test(`${testName} lint`, async () => {
-        const flags = await readFlags(`test/runtime/${testName}.ts`);
+        test(`${testName} transpile`, async () => {
+          const flags = await readFlags(`test/runtime/${testFile}`);
+          var { stderr } = await exec(jcoPath, 'transpile', `test/fixtures/components/${fixture}`, '--name', testName, ...flags, '-o', `test/output/${testName}`);
+          strictEqual(stderr, '');
+        });
 
-        if (flags.includes('--js'))
-          return;
+        test(`${testName} lint`, async () => {
+          const flags = await readFlags(`test/runtime/${testFile}`);
 
-        var { stderr } = await exec(eslintPath, `test/output/${testName}/${testName}.js`, '-c', 'test/eslintrc.cjs');
-        strictEqual(stderr, '');
-      });
+          if (flags.includes('--js'))
+            return;
+
+          var { stderr } = await exec(eslintPath, `test/output/${testName}/${testName}.js`, '-c', 'test/eslintrc.cjs');
+          strictEqual(stderr, '');
+        });
+      }
     }
   });
 

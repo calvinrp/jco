@@ -75,7 +75,7 @@ const stdinStream = new InputStream({
     // TODO
   }
 });
-let textDecoder = new TextDecoder();
+const textDecoder = new TextDecoder();
 const stdoutStream = new OutputStream({
   write (contents) {
     if (contents[contents.length - 1] == 10) {

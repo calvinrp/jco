@@ -1,28 +1,24 @@
 // import { deepStrictEqual, ok, strictEqual } from "node:assert";
-import puppeteer from "puppeteer";
+import { URL } from "node:url";
 import { mkdir, readFile, writeFile, rm, symlink, mkdtemp } from "node:fs/promises";
 import { createServer } from "node:http";
-import { fileURLToPath, pathToFileURL } from "url";
+import test from "node:test";
 import { tmpdir } from "node:os";
 import { resolve, normalize, sep, extname, dirname } from "node:path";
 import { ok, strictEqual } from "node:assert";
-import { transpile } from '../src/api.js';
+
+import { fileURLToPath, pathToFileURL } from "url";
 import mime from 'mime';
-import { exec, jcoPath } from "./helpers.js";
+import puppeteer from "puppeteer";
 
-export async function browserTest() {
-  suite("Browser", () => {
-    /**
-     * Securely creates a temporary directory and returns its path.
-     *
-     * The new directory is created using `fsPromises.mkdtemp()`.
-     */
-    async function getTmpDir() {
-      return await mkdtemp(normalize(tmpdir() + sep));
-    }
+import { transpile } from '../../src/api.js';
+import { exec, jcoPath, testBrowserPage, getTmpDir, getRandomPort } from "../helpers.js";
 
+export async function browserWebIdlTest() {
+  suite("Browser WebIDL", () => {
     let tmpDir, outDir, outFile, outDirUrl;
-    let server, browser;
+    let server, browser, serverPort;
+
     suiteSetup(async function () {
       tmpDir = await getTmpDir();
       outDir = resolve(tmpDir, "out-component-dir");
@@ -37,13 +33,14 @@ export async function browserTest() {
         "dir"
       );
 
-      // run a local server on 8080
+      // Run a local server on a random port
+      const serverPort = await getRandomPort();
       server = createServer(async (req, res) => {
         let fileUrl;
         if (req.url.startsWith('/tmpdir/')) {
           fileUrl = new URL(`.${req.url.slice(7)}`, outDirUrl);
         } else {
-          fileUrl = new URL(`../${req.url}`, import.meta.url);
+          fileUrl = new URL(`../../${req.url}`, import.meta.url);
         }
         try {
           const html = await readFile(fileUrl);
@@ -58,10 +55,11 @@ export async function browserTest() {
             res.end(e.message);
           }
         }
-      }).listen(8080);
+      }).listen(serverPort);
 
       browser = await puppeteer.launch();
     });
+
     suiteTeardown(async function () {
       try {
         await rm(tmpDir, { recursive: true });
@@ -77,23 +75,12 @@ export async function browserTest() {
       } catch {}
     });
 
-    async function testBrowserPage (hash) {
-      const page = await browser.newPage();
-
-      ok((await page.goto(`http://localhost:8080/test/browser.html#${hash}`)).ok());
-
-      const body = await page.locator('body').waitHandle();
-
-      let bodyHtml = await body.evaluate(el => el.innerHTML);
-      while (bodyHtml === '<h1>Running</h1>') {
-        bodyHtml = await body.evaluate(el => el.innerHTML);
-      }
-      strictEqual(bodyHtml, '<h1>OK</h1>');
-      await page.close();
-    }
-
     test("Transpilation", async () => {
-      await testBrowserPage('transpile');
+      await testBrowserPage({
+        browser,
+        serverPort,
+        hash: 'transpile',
+      });
     });
 
     test('IDL window', async () => {
@@ -128,7 +115,11 @@ export async function browserTest() {
       }
 
       // Run the test function in the browser from the generated tmpdir
-      await testBrowserPage('test:dom.js');
+      await testBrowserPage({
+        browser,
+        serverPort,
+        hash: 'test:dom.js',
+      });
     });
 
     test('IDL console', async () => {
@@ -162,7 +153,12 @@ export async function browserTest() {
         await writeFile(outPath, source);
       }
 
-      await testBrowserPage('test:console.js');
+      await testBrowserPage({
+        browser,
+        serverPort,
+        hash: 'test:console.js',
+      });
     });
+
   });
 }

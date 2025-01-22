@@ -15,6 +15,14 @@
       "types": "./types/*.d.ts",
       "node": "./lib/nodejs/*.js",
       "default": "./lib/browser/*.js"
+    },
+    "./async": {
+      "types": "./types-async/index.d.ts",
+      "default": "./lib/browser-async/index.js"
+    },
+    "./async/*": {
+      "types": "./types/*.d.ts",
+      "default": "./lib/browser-async/*.js"
     }
   },
   "scripts": {
