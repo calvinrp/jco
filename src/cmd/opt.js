@@ -1,10 +1,14 @@
-import { $init, tools } from '../../obj/wasm-tools.js';
-const { metadataShow, print } = tools;
-import { writeFile } from 'fs/promises';
+import { env } from 'node:process';
+import { writeFile, stat } from 'node:fs/promises';
+
 import { fileURLToPath } from 'url';
 import c from 'chalk-template';
-import { readFile, sizeStr, fixedDigitDisplay, table, spawnIOTmp, setShowSpinner, getShowSpinner } from '../common.js';
 import ora from '#ora';
+
+import { readFile, sizeStr, fixedDigitDisplay, table, spawnIOTmp, setShowSpinner, getShowSpinner } from '../common.js';
+
+import { $init, tools } from '../../obj/wasm-tools.js';
+const { metadataShow, print } = tools;
 
 export async function opt (componentPath, opts, program) {
   await $init;
@@ -45,9 +49,9 @@ ${table([...compressionInfo.map(({ beforeBytes, afterBytes }, i) => {
 }
 
 /**
- * 
- * @param {Uint8Array} componentBytes 
- * @param {{ quiet: boolean, asyncMode?: string, optArgs?: string[] }} opts?
+ *
+ * @param {Uint8Array} componentBytes
+ * @param {{ quiet: boolean, asyncMode?: string, optArgs?: string[], wasmOptBinPath?: string }} opts?
  * @returns {Promise<{ component: Uint8Array, compressionInfo: { beforeBytes: number, afterBytes: number }[] >}
  */
 export async function optimizeComponent (componentBytes, opts) {
@@ -67,11 +71,25 @@ export async function optimizeComponent (componentBytes, opts) {
       spinner.text = spinnerText();
     }
 
+    // TODO: if someone provides *more* than the default set of arguments, we need to do a fresh wasmOpt run
+    // and we can't depend on the pre-optimized version
+
     const args = opts?.optArgs ? [...opts.optArgs] : ['-Oz', '--low-memory-unused', '--enable-bulk-memory', '--strip-debug'];
     if (opts?.asyncMode === 'asyncify') args.push('--asyncify');
 
+    // TODO: pre-asyncify builds of starling-monkey.wasm (i.e output from SM builds)
+    // TODO: add option for custom starling-monkey.wasm to componentize-js
+    // TODO: option in JCO to skip wasm-opt in the presence of pre-asyncified starling-monkey build
+    //    - This can be detected by looking at the exports (asyncify's exports)!
+
+    // TODO: pull down pre-optimized build of SM
+
     const optimizedCoreModules = await Promise.all(coreModules.map(async ([coreModuleStart, coreModuleEnd]) => {
-      const optimized = wasmOpt(componentBytes.subarray(coreModuleStart, coreModuleEnd), args);
+      const optimized = wasmOpt({
+        moduleBytes: componentBytes.subarray(coreModuleStart, coreModuleEnd),
+        cliArgs: args,
+        wasmOptBinPath: opts.wasmOptBinPath,
+      });
       if (spinner) {
         completed++;
         spinner.text = spinnerText();
@@ -116,7 +134,6 @@ export async function optimizeComponent (componentBytes, opts) {
     outComponentBytes.set(componentBytes.subarray(nextReadPos), nextWritePos);
     nextWritePos += componentBytes.byteLength - nextReadPos;
 
-    outComponentBytes = outComponentBytes.subarray(0, outComponentBytes.length + nextWritePos - nextReadPos);
     // truncate to the bytes written
     outComponentBytes = outComponentBytes.subarray(0, nextWritePos);
 
@@ -124,7 +141,7 @@ export async function optimizeComponent (componentBytes, opts) {
     try {
       await print(outComponentBytes);
     } catch (e) {
-      throw new Error(`Internal error performing optimization.\n${e.message}`)
+      throw new Error(`Internal error performing optimization.\n${e.message}`);
     }
 
     return {
@@ -139,20 +156,39 @@ export async function optimizeComponent (componentBytes, opts) {
 }
 
 /**
- * @param {Uint8Array} source 
- * @param {Array<string>} args
+ * Optimize a WebAssembly module, using wasm-opt
+ *
+ * NOTE: this can take minutes on a nearly empty JS compnent.
+ *
+ * @param {object} args
+ * @param {Uint8Array} args.moduleBytes - Wasm module bytes
+ * @param {Array<string>} args.cliArgs - CLI arguments to feed to wasmOpt
+ * @param {string} [args.wasmOptBinPath] - Path to wasm-opt binary
  * @returns {Promise<Uint8Array>}
  */
-async function wasmOpt(source, args) {
-  const wasmOptPath = fileURLToPath(import.meta.resolve('binaryen/bin/wasm-opt'));
-
+async function wasmOpt(args) {
+  const {
+    moduleBytes,
+    cliArgs,
+  } = args;
+  // Get wasmOpt binary, ensure it exists
+  const wasmOptPath = env.WASM_OPT_BIN_PATH ?? args?.wasmOptBinPath ?? fileURLToPath(import.meta.resolve('binaryen/bin/wasm-opt'));
   try {
-    return await spawnIOTmp(wasmOptPath, source, [
-      ...args, '-o'
-    ]);
+    await stat(wasmOptPath);
+  } catch (err)  {
+    if (err && err.code && err.code === 'ENOENT') {
+      throw new Error(`Missing/invalid binary for wasm-opt [${wasmOptPath}] (do you need to specify WASM_OPT_BIN_PATH ?`);
+    }
+    throw err;
+  }
+
+  // Run wasm-opt
+  try {
+    return await spawnIOTmp(wasmOptPath, moduleBytes, [...cliArgs, '-o']);
   } catch (e) {
-    if (e.toString().includes('BasicBlock requested'))
-      return wasmOpt(source, args);
+    if (e.toString().includes('BasicBlock requested')) {
+      return wasmOpt(args);
+    }
     throw e;
   }
 }

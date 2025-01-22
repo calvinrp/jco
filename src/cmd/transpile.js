@@ -140,6 +140,7 @@ export async function transpile (componentPath, opts, program) {
     opts.name = basename(componentPath.slice(0, -extname(componentPath).length || Infinity));
   if (opts.map)
     opts.map = Object.fromEntries(opts.map.map(mapping => mapping.split('=')));
+
   if (opts.defaultAsyncImports)
     opts.asyncImports = DEFAULT_ASYNC_IMPORTS.concat(opts.asyncImports || []);
   if (opts.defaultAsyncExports)
@@ -184,11 +185,13 @@ async function wasm2Js (source) {
  *   js?: bool,
  *   minify?: bool,
  *   optimize?: bool,
+ *   preoptimized?: bool,
  *   namespacedExports?: bool,
  *   outDir?: string,
  *   multiMemory?: bool,
  *   experimentalIdlImports?: bool,
  *   optArgs?: string[],
+ *   wasmOptBinPath?: string,
  * }} opts
  * @returns {Promise<{ files: { [filename: string]: Uint8Array }, imports: string[], exports: [string, 'function' | 'instance'][] }>}
  */
@@ -198,7 +201,13 @@ export async function transpileComponent (component, opts = {}) {
 
   let spinner;
   const showSpinner = getShowSpinner();
-  if (opts.optimize || opts.asyncMode === 'asyncify') {
+
+  // We must perform optimization if it's requested, or if the component has *not*
+  // already been built with already optimized code before wizer init, if using asyncify.
+  //
+  // Preoptimized is generally used internally (users cannot pass it in as a CLI option),
+  // but they may pass in asyncMode
+  if (opts.optimize || !opts.preoptimized && opts.asyncMode === 'asyncify') {
     if (showSpinner) setShowSpinner(true);
     ({ component } = await optimizeComponent(component, opts));
   }
