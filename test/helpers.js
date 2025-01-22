@@ -198,7 +198,7 @@ export async function setupAsyncTest(args) {
     asyncMode,
     wasiShim: true,
     outDir: moduleOutputDir,
-    ...(jco?.transpile?.extraArgs || []),
+    ...(jco?.transpile?.extraArgs || {}),
   };
 
   // If we used a pre-optimized build, then we can set that before transpiling
@@ -438,7 +438,7 @@ export async function loadTestPage(args) {
   try {
     testOutputJSON = JSON.parse(raw);
   } catch (err) {
-    log(`failed to parse JSON for body HTML: ${e}`);
+    log(`failed to parse JSON for body HTML: ${err}`);
   }
 
   return {

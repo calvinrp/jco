@@ -70,9 +70,9 @@ export async function asyncTest(_fixtures) {
     });
 
     test("Transpile async (JSPI)", async () => {
-      const { instance, cleanup } = await setupAsyncTest({
+      const { instance, cleanup, component } = await setupAsyncTest({
+        asyncMode: "jspi",
         component: {
-          asyncMode: "jspi",
           name: "async_call",
           path: resolve("test/fixtures/components/async_call.component.wasm"),
           imports: {
@@ -84,10 +84,14 @@ export async function asyncTest(_fixtures) {
         },
         jco: {
           transpile: {
-            extraArgs: [
-              "--async-imports=something:test/test-interface#call-async",
-              "--async-exports=run-async",
-            ],
+            extraArgs: {
+              asyncImports: [
+                "something:test/test-interface#call-async",
+              ],
+              asyncExports: [
+                "run-async",
+              ],
+            },
           },
         },
       });
@@ -103,6 +107,7 @@ export async function asyncTest(_fixtures) {
 
     test("Transpile async (asyncify)", async () => {
       const { instance, cleanup } = await setupAsyncTest({
+        asyncMode: "asyncify",
         component: {
           name: "async_call",
           path: resolve("test/fixtures/components/async_call.component.wasm"),
@@ -115,11 +120,15 @@ export async function asyncTest(_fixtures) {
         },
         jco: {
           transpile: {
-            extraArgs: [
-              "--async-imports=something:test/test-interface#call-async",
-              "--async-exports=run-async",
-            ],
-          }
+            extraArgs: {
+              asyncImports: [
+                "something:test/test-interface#call-async",
+              ],
+              asyncExports: [
+                "run-async",
+              ],
+            },
+          },
         },
       });
 
@@ -138,6 +147,7 @@ export async function asyncTest(_fixtures) {
 
     test("Transpile async (asyncify)", async () => {
       const { instance, cleanup } = await setupAsyncTest({
+        asyncMode: "asyncify",
         component: {
           name: "async_call",
           path: resolve("test/fixtures/components/async_call.component.wasm"),
@@ -150,10 +160,14 @@ export async function asyncTest(_fixtures) {
         },
         jco: {
           transpile: {
-            extraArgs: [
-              "--async-imports=something:test/test-interface#call-async",
-              "--async-exports=run-async",
-            ],
+            extraArgs: {
+              asyncImports: [
+                "something:test/test-interface#call-async",
+              ],
+              asyncExports: [
+                "run-async",
+              ],
+            },
           }
         },
       });
