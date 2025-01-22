@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+
+<!--
+     This page tests a component that exports `wasi:http/incoming-handler#handle` in an async manner.
+
+     The component must be built with either JSPI/Asyncify enabled, and is loaded by this page,
+     then run through the shim's genHandler() helper.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "@bytecodealliance/preview2-shim/cli": "/builtin/packages/preview2-shim/lib/browser-async/cli.js",
+    "@bytecodealliance/preview2-shim/clocks": "/builtin/packages/preview2-shim/lib/browser-async/clocks.js",
+    "@bytecodealliance/preview2-shim/filesystem": "/builtin/packages/preview2-shim/lib/browser-async/filesystem.js",
+    "@bytecodealliance/preview2-shim/http": "/builtin/packages/preview2-shim/lib/browser-async/http.js",
+    "@bytecodealliance/preview2-shim/io": "/builtin/packages/preview2-shim/lib/browser-async/io.js",
+    "@bytecodealliance/preview2-shim/random": "/builtin/packages/preview2-shim/lib/browser-async/random.js",
+    "@bytecodealliance/preview2-shim/sockets": "/builtin/packages/preview2-shim/lib/browser-async/sockets.js"
+  }
+}
+</script>
+
+<!-- The script below loads and instantiates the module -->
+<script type="module">
+ import * as http from "@bytecodealliance/preview2-shim/http";
+
+ // Prefix used in URL hash to direct the backend test server to serve up
+ // a specific (transpiled) JS lib
+ const HASH_PREFIX_DYNAMIC_COMPONENT = 'transpiled:'
+
+ const testName = window.location.hash.slice(1);
+ document.body.innerHTML = '<h1>Running</h1>';
+
+ if (testName.startsWith(HASH_PREFIX_DYNAMIC_COMPONENT)) {
+   // We expect to be called with a hash prefix noting the path to the component we should load
+   await runTranspiledModuleTest(testName.slice(HASH_PREFIX_DYNAMIC_COMPONENT.length));
+ } else {
+   err(`Unknown test case "${testName}"`);
+ }
+
+ // OK/Error states for the test function
+ // (the test harness should check for body contents)
+ function ok(msg) { document.body.innerHTML = typeof msg === "object" ? JSON.stringify(msg) : `${err}`; }
+ function err(err) { document.body.innerHTML = typeof err === "object" ? JSON.stringify(err) : `${err}`; }
+
+ async function runTranspiledModuleTest(moduleName) {
+   // Run tests on components in the tmpdir directory (as reflected by the backing web server)
+   const testModule = `/transpiled/${moduleName}`;
+   try {
+     // Load the module
+     const mod = await import(testModule);
+
+     // TODO: Transpiled modules expect host mappings like `wasi:cli/stderr`
+     // There has to be a better way than having to spell out every single one.
+     //
+     const wasi = {
+       cli: await import("@bytecodealliance/preview2-shim/cli"),
+       clocks: await import("@bytecodealliance/preview2-shim/clocks"),
+       filesystem: await import("@bytecodealliance/preview2-shim/filesystem"),
+       http: await import("@bytecodealliance/preview2-shim/http"),
+       io: await import("@bytecodealliance/preview2-shim/io"),
+       random: await import("@bytecodealliance/preview2-shim/random"),
+       sockets: await import("@bytecodealliance/preview2-shim/sockets"),
+     };
+
+     // Instantiate the module, with the WASI browser shim
+     const instantiated = await mod.instantiate(undefined, {
+       "wasi:cli/stderr": wasi.cli.stderr,
+       "wasi:cli/stdin": wasi.cli.stdin,
+       "wasi:cli/stdout": wasi.cli.stdout,
+       "wasi:cli/terminal-input": wasi.cli.terminalInput,
+       "wasi:cli/terminal-output": wasi.cli.terminalOutput,
+       "wasi:cli/terminal-stderr": wasi.cli.terminalStderr,
+       "wasi:cli/terminal-stdin": wasi.cli.terminalStdin,
+       "wasi:cli/terminal-stdout": wasi.cli.terminalStdout,
+
+       "wasi:clocks/monotonic-clock": wasi.clocks.monotonicClock,
+       "wasi:clocks/wall-clock": wasi.clocks.wallClock,
+
+       "wasi:filesystem/preopens": wasi.filesystem.preopens,
+       "wasi:filesystem/types": wasi.filesystem.types,
+
+       "wasi:http/outgoing-handler": wasi.http.outgoingHandler,
+       "wasi:http/types": wasi.http.types,
+       // TODO: need to enumerate *all* exports of wasi.http here, and merge them..?
+       // stringified keys that include the version are already there.
+       "wasi:http/types@0.2.2": wasi.http.types,
+
+       "wasi:io/error": wasi.io.error,
+       "wasi:io/poll": wasi.io.poll,
+       "wasi:io/streams": wasi.io.streams,
+
+       "wasi:random/random": wasi.random.random,
+     });
+
+     // Ensure the module conforms to `wasi:http/incoming-handler#handle`, or at least has a `handle` function
+     const handle = instantiated?.incomingHandler?.handle;
+     if (!handle) {
+       throw new Error(`Expected test module "${testModule}" to export a "handle" function (as in wasi:http/incoming-handler#handle). It only contains keys [${Object.keys(mod)}]`);
+     }
+
+     // Generate a function that can actually run the handler, using a utility function provided by the browser shim
+     const handler = await http.incomingHandler.genHandler(handle);
+
+     // Run the handler, get the response
+     const response = await handler(new Request("/", {headers: { Environment: "test" }}));
+     const responseText = await response.text();
+     console.log(`RESPONSE TEXT: ${responseText}`);
+
+     ok({ responseText });
+   } catch (e) {
+     err(`ERROR while running [${testModule}]:\n\n${e}\n${e.stack}`);
+   }
+ }
+
+</script>
