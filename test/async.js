@@ -70,9 +70,9 @@ export async function asyncTest(_fixtures) {
     });
 
     test("Transpile async (JSPI)", async () => {
-      const { instance, cleanup } = await setupAsyncTest({
+      const { instance, cleanup, component } = await setupAsyncTest({
+        asyncMode: "jspi",
         component: {
-          asyncMode: "jspi",
           name: "async_call",
           path: resolve("test/fixtures/components/async_call.component.wasm"),
           imports: {

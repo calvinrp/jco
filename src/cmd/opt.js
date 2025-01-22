@@ -88,7 +88,7 @@ export async function optimizeComponent (componentBytes, opts) {
       const optimized = wasmOpt({
         moduleBytes: componentBytes.subarray(coreModuleStart, coreModuleEnd),
         cliArgs: args,
-        wasmOptBinPath: opts.wasmOptBinPath,
+        wasmOptBinPath: opts?.wasmOptBinPath,
       });
       if (spinner) {
         completed++;
