@@ -10,7 +10,6 @@ const {
     metadataShow: metadataShowFn
 } = tools;
 
-export { componentize } from './cmd/componentize.js';
 export { optimizeComponent as opt } from './cmd/opt.js';
 export { transpileComponent as transpile, typesComponent as types } from './cmd/transpile.js';
 

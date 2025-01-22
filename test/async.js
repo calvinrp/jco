@@ -11,8 +11,6 @@ import {
 
 import { fileURLToPath, pathToFileURL } from "url";
 
-import { componentize } from "../src/api.js";
-
 import { exec, jcoPath, getTmpDir, setupAsyncTest } from "./helpers.js";
 
 const multiMemory = execArgv.includes("--experimental-wasm-multi-memory")
