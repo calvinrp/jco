@@ -63,7 +63,7 @@ may not represent every single available environment variable:
 |-----------------------------------|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
 | `TEST_DEBUG`                      | `true`                                    | Used to control whether debugging information (logs, etc) is turned on during test                                                |
 | `TEST_CUSTOM_ENGINE_JIT_PATH`     | `path/to/some-starling-monkey-build.wasm` | Path to the starling monkey build that should be used *instead* of the default (normally used to get a pre-async-optimized build) |
-| `TEST_CUSTOM_ENGINE_AOT_PATH`     |                                           | =/home/mrman/code/work/cosmonic/npm/starlingmonkey-wasm-optimized/starling-monkey.optimized-async.weval.wasm                      |
+| `TEST_CUSTOM_ENGINE_AOT_PATH`     |  `path/to/weval`                                         | Path to the weval AOT engine |
 | `TEST_CUSTOM_ENGINE_PREOPTIMIZED` | `true`                                    | Tells the tests whether the custom engine is is preoptimized                                                                      |
 | `TEST_DEBUG_NO_CLEANUP`           | `true`                                    | Disable cleaning up after tests (note that some cleanup is done by `node` directly, i.e. `mkdtemp`)                               |
 
