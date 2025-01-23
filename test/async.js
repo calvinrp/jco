@@ -69,6 +69,62 @@ export async function asyncTest(_fixtures) {
       ok(source.toString().includes("export { test"));
     });
 
+    test("Build component async (JSPI)", async () => {
+      const { instance, cleanup, component } = await setupAsyncTest({
+        asyncMode: "jspi",
+        component: {
+          name: "async_call",
+          build: {
+            componentizeOpts: {
+              disableFeatures: ['random', 'stdio', 'clocks', 'http'],
+            },
+            js: {
+              source: `
+                export function hello (name) {
+                  return \`Hello \${name}\`;
+                }
+              `,
+            },
+            wit: {
+              deps: [
+                { srcPath: resolve("test/fixtures/wasi/0.2.2/wasi_cli@0.2.2.wit") },
+                { srcPath: resolve("test/fixtures/wasi/0.2.2/wasi_clocks@0.2.2.wit") },
+                { srcPath: resolve("test/fixtures/wasi/0.2.2/wasi_filesystem@0.2.2.wit") },
+                { srcPath: resolve("test/fixtures/wasi/0.2.2/wasi_http@0.2.2.wit") },
+                { srcPath: resolve("test/fixtures/wasi/0.2.2/wasi_io@0.2.2.wit") },
+                { srcPath: resolve("test/fixtures/wasi/0.2.2/wasi_random@0.2.2.wit") },
+                { srcPath: resolve("test/fixtures/wasi/0.2.2/wasi_sockets@0.2.2.wit") },
+              ],
+              source: `
+                package local:hello;
+
+                world hello {
+                  export hello: func(name: string) -> string;
+                }
+              `,
+              world: "hello",
+            },
+          },
+        },
+        jco: {
+          transpile: {
+            extraArgs: {
+              asyncExports: [
+                "hello",
+              ],
+            },
+          },
+        },
+      });
+
+      //strictEqual(instance.runSync instanceof AsyncFunction, false, "runSync() should be a sync function");
+      strictEqual(instance.hello instanceof AsyncFunction, true, "hello() should be an async function");
+
+      strictEqual(await instance.hello("world from test"), "Hello world from test");
+
+      await cleanup();
+    });
+
     test("Transpile async (JSPI)", async () => {
       const { instance, cleanup, component } = await setupAsyncTest({
         asyncMode: "jspi",
