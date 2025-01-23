@@ -75,9 +75,9 @@ export async function asyncTest(_fixtures) {
         component: {
           name: "async_call",
           build: {
-            componentizeOpts: {
-              disableFeatures: ['random', 'stdio', 'clocks', 'http'],
-            },
+            //componentizeOpts: {
+            //  disableFeatures: ['random', 'stdio', 'clocks', 'http'],
+            //},
             js: {
               source: `
                 export function hello (name) {
