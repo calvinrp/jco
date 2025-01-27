@@ -29,6 +29,7 @@ import { preview2Test } from './preview2.js';
 import { witTest } from './wit.js';
 import { tsTest } from './typescript.js';
 import { asyncTest } from './async.js';
+import { asyncBrowserTest } from './async.browser.js';
 
 await codegenTest(componentFixtures);
 tsTest();
@@ -39,6 +40,7 @@ await apiTest(componentFixtures);
 await cliTest(componentFixtures);
 await witTest();
 await asyncTest();
+await asyncBrowserTest();
 
 if (platform !== 'win32') {
   await browserTest();
