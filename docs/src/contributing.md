@@ -39,17 +39,38 @@ jco is effectively a monorepo consisting of the following projects:
 
 ## Building
 
-To build jco, run:
+To build `jco`, run:
 
-```
+```console
 npm install
 npm run build
 ```
 
 ## Testing
 
-There are three test suites in jco:
+There are three test suites in `jco`:
 * `npm run test`: Project-level transpilation, CLI & API tests.
 * `npm run test --workspace packages/preview2-shim`: `preview2-shim` unit tests.
 * `test/browser.html`: Bare-minimum browser validation test.
 * `cargo test`: Wasmtime preview2 conformance tests (not currently passing).
+
+### Test-time environment variables
+
+Some environment variables may be used to control test-time behavior, the list below is best-effort, and
+may not represent every single available environment variable:
+
+| ENV Variable                      | Example                                   | Description                                                                                                                       |
+|-----------------------------------|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `TEST_DEBUG`                      | `true`                                    | Used to control whether debugging information (logs, etc) is turned on during test                                                |
+| `TEST_CUSTOM_ENGINE_JIT_PATH`     | `path/to/some-starling-monkey-build.wasm` | Path to the starling monkey build that should be used *instead* of the default (normally used to get a pre-async-optimized build) |
+| `TEST_CUSTOM_ENGINE_AOT_PATH`     |  `path/to/weval`                                         | Path to the weval AOT engine |
+| `TEST_CUSTOM_ENGINE_PREOPTIMIZED` | `true`                                    | Tells the tests whether the custom engine is is preoptimized                                                                      |
+| `TEST_DEBUG_NO_CLEANUP`           | `true`                                    | Disable cleaning up after tests (note that some cleanup is done by `node` directly, i.e. `mkdtemp`)                               |
+
+### Debugging
+
+While running tests, it may be helpful to enable test debugging (ex. seeing logging output of tests, headless puppeteer browser, etc). To do that you can use `TEST_DEBUG`:
+
+```console
+TEST_DEBUG=true npm run test
+```
