@@ -198,10 +198,12 @@ export class OutputStream {
   async blockingWriteAndFlush(contents) {
     if (this.#readableController) {
       this.#readableController?.enqueue(contents);
-    } else if (this.#prevWritePromise) {
-      throw new Error("waiting for previous write to finish"); // TODO: Or should wait for it?
     } else {
       try {
+        // wait for previous write to finish first
+        if (this.#prevWritePromise) {
+            await this.#prevWritePromise;
+        }
         await this.#writer.write(contents);
       } catch (err) {
         throw { tag: 'last-operation-failed', val: new IoError(err.toString()) };
