@@ -20,9 +20,21 @@ export class InputStream {
   }
 
   async #fillBuffer() {
-    const { value, done } = await this.#reader.read();
-    if (done) this.#closed = done;
-    this.#buffer = value || new Uint8Array(0);
+    if (this.#buffer.byteLength === 0) {
+      while (true) {
+        const { value, done } = await this.#reader.read();
+        if (done) {
+          this.#closed = done;
+          return;
+        } else if (!value || value.byteLength === 0) {
+          // try again if returned empty buffer but is still open
+          continue;
+        } else {
+          this.#buffer = value;
+          return;
+        }
+      }
+    }
   }
 
   /**
@@ -52,7 +64,7 @@ export class InputStream {
   async blockingRead(len) {
     // if buffer has data, read that first
     if (this.#buffer.byteLength > 0) return this.read(len);
-    if (this.#buffer.byteLength === 0 && this.#closed) throw { tag: 'closed' };
+    if (this.#closed) throw { tag: 'closed' };
     await this.#fillBuffer();
     return this.read(len);
   }
@@ -91,9 +103,10 @@ export class InputStream {
    * @returns {Pollable}
    */
   subscribe() {
-    // return ready pollable if has bytes in buffer
-    if (this.#buffer.byteLength > 0) return new Pollable();
-    return new Pollable(this.#fillBuffer());
+    return new Pollable({
+      ready: () => this.#buffer.byteLength > 0 || this.#closed,
+      asyncFunc: () => this.#fillBuffer(),
+    });
   }
 }
 
@@ -186,7 +199,7 @@ export class OutputStream {
     if (this.#readableController) {
       this.#readableController?.enqueue(contents);
     } else if (this.#prevWritePromise) {
-      throw new Error("waiting for previous write to finish");
+      throw new Error("waiting for previous write to finish"); // TODO: Or should wait for it?
     } else {
       try {
         await this.#writer.write(contents);

@@ -1,21 +1,34 @@
 // wasi:io/poll@0.2.0 interface
 
+
+
 // Pollable represents a single I/O event which may be ready, or not.
 export class Pollable {
-  #ready = false;
-  #promise;
+  /**
+   * @type {{ ready: (boolean | function(): boolean), asyncFunc: (undefined | function(): Promise) }}
+   */
+  #state;
 
   /**
    * Sets the pollable to ready whether the promise is resolved or
    * rejected.
    *
-   * @param {Promise|undefined|null} promise
+   * @param {Promise|{ ready: function(): boolean, asyncFunc: function(): Promise }|undefined|null} state
    */
-  constructor(promise) {
-    const setReady = () => {
-      this.#ready = true;
-    };
-    this.#promise = (promise || Promise.resolve()).then(setReady, setReady);
+  constructor(state) {
+    if (!state) {
+      // always ready
+      this.#state = { ready: true };
+    } else if (state.then) {
+      // is single promise that terminates into ready state
+      const setReady = () => {
+        this.#state.ready = true;
+      };
+      this.#state = { ready: false, asyncFunc: () => state.then(setReady, setReady) };
+    } else {
+      // can be multiple promises that could change readiness
+      this.#state = state;
+    }
   }
 
   /**
@@ -26,7 +39,10 @@ export class Pollable {
    * @returns {boolean}
    */
   ready() {
-    return this.#ready;
+    // `this.#state.ready` could be `true`, `false`, or a `function(): boolean`
+    return !this.#state.ready ?
+      false : this.#state.ready === true ?
+        true : this.#state.ready();
   }
 
   /**
@@ -37,7 +53,9 @@ export class Pollable {
    * containing only this pollable.
    */
   async block() {
-    await this.#promise;
+    if (!this.ready()) {
+      await this.#state.asyncFunc();
+    }
   }
 }
 
