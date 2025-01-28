@@ -1,5 +1,6 @@
-import { env, argv, execArgv } from "node:process";
-import { createServer } from "node:net";
+import { version, env, argv, execArgv } from "node:process";
+import { createServer as createNetServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
 import {
   basename,
   join,
@@ -9,6 +10,7 @@ import {
   sep,
   relative,
   dirname,
+  extname,
 } from "node:path";
 import {
   cp,
@@ -22,6 +24,7 @@ import { ok, strictEqual } from "node:assert";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 
+import mime from "mime";
 import { pathToFileURL } from "url";
 
 import { transpile } from "../src/api.js";
@@ -158,6 +161,7 @@ export async function setupAsyncTest(args) {
 
   // Build out the whole-test cleanup function
   let cleanup = async () => {
+    log("[cleanup] cleaning up component...");
     if (componentBuildCleanup) {
       try {
         await componentBuildCleanup();
@@ -170,6 +174,10 @@ export async function setupAsyncTest(args) {
 
   // Return early if the test was intended to run on JSPI but JSPI is not enabled
   if (asyncMode == "jspi" && typeof WebAssembly?.Suspending !== "function") {
+    let nodeMajorVersion = parseInt(version.replace("v","").split(".")[0]);
+    if (nodeMajorVersion < 23) {
+      throw new Error("NodeJS versions <23 does not support JSPI integration, please use a NodeJS version >=23");
+    }
     await cleanup();
     throw new Error(
       "JSPI async type skipped, but JSPI was not enabled -- please ensure test is run from an environment with JSPI integration (ex. node with the --experimental-wasm-jspi flag)",
@@ -207,10 +215,6 @@ export async function setupAsyncTest(args) {
     transpileOpts.preoptimized = true;
   }
 
-  // log("EXEC ARGS?", transpileExecArgs);
-  // log(`EXECable\njco ${transpileExecArgs.join(" ")}`);
-  // await new Promise(resolve => setTimeout(resolve, 60_000));
-
   const componentBytes = await readFile(componentPath);
 
   // Perform transpilation, write out files
@@ -234,8 +238,8 @@ export async function setupAsyncTest(args) {
 
   // Import the transpiled JS
   const esModuleOutputPath = join(moduleOutputDir, `${componentName}.js`);
-  const esModuleSourcePath = pathToFileURL(esModuleOutputPath);
-  const module = await import(esModuleSourcePath);
+  const esModuleSourcePathURL = pathToFileURL(esModuleOutputPath);
+  const module = await import(esModuleSourcePathURL);
 
   // TODO: DEBUG module import not working, file is missing!
   // log("PRE INSTANTIATION", { moduleOutputDir });
@@ -252,10 +256,12 @@ export async function setupAsyncTest(args) {
 
   return {
     module,
-    esModuleSourcePath,
+    esModuleOutputPath,
+    esModuleSourcePathURL,
     esModuleRelativeSourcePath: relative(outputDir, esModuleOutputPath),
     instance,
     cleanup,
+    outputDir,
     component: {
       name: componentName,
       path: componentPath,
@@ -419,6 +425,7 @@ export async function loadTestPage(args) {
   const serverPort = args.serverPort ? args.serverPort : 8080;
 
   const hashURL = `http://localhost:${serverPort}/${path}#${hash}`;
+  log(`[browser] attempting to navigate to [${hashURL}]`);
   const hashTest = await page.goto(hashURL);
   ok(hashTest.ok(), `navigated to URL [${hashURL}]`);
 
@@ -454,11 +461,87 @@ export async function loadTestPage(args) {
 // Utility function for getting a random port
 export async function getRandomPort() {
   return await new Promise((resolve) => {
-    const server = createServer();
+    const server = createNetServer();
     server.listen(0, function () {
       const port = this.address().port;
       server.on("close", () => resolve(port));
       server.close();
     });
   });
+}
+
+/**
+ * Start a web server that serves components and related files from a
+ * given directory.
+ *
+ * @param {{ servePaths: { basePath: string, urlPrefix: string }[] }} args
+ * @returns {Promise<{ serverPort: number, server: object }>}
+ */
+export async function startTestWebServer(args) {
+  if (!args.routes) { throw new Error("missing serve paths"); }
+  const serverPort = await getRandomPort();
+
+  const server = createHttpServer(async (req, res) => {
+    // Build a utility fucntion for returning an error
+    const returnError = (e) => {
+      log(`[webserver] failed to find file [${fileURL}]`);
+      res.writeHead(404);
+      res.end(e.message);
+    };
+
+    // Find route to serve incoming request
+    const route = args.routes.find(dir => {
+      return !dir.urlPrefix || (dir.urlPrefix && req.url.startsWith(dir.urlPrefix));
+    });
+    if (!route) {
+      log(`[webserver] failed to find route to serve [${req.url.path}]`);
+      returnError(new Error(`failed to resolve url [${req.url}] with any provided routes`));
+      return;
+    }
+    if (!route.basePathURL) { throw new Error("invalid/missing path in specified route"); }
+
+    const fileURL = new URL(
+      `./${req.url.slice(route.urlPrefix ? route.urlPrefix.length : "")}`,
+      route.basePathURL,
+    );
+
+    log(`[webserver] attempting to read file on disk @ [${fileURL}]`);
+
+    // Attempt to read the file
+    try {
+      const html = await readFile(fileURL);
+      res.writeHead(200, {
+        "content-type": mime.getType(extname(req.url)),
+      });
+      res.end(html);
+      log(`[webserver] served file [${fileURL}]`);
+    } catch (e) {
+      if (e.code === "ENOENT") {
+        returnError(e);
+      } else {
+        log(`[webserver] ERROR [${e}]`);
+        res.writeHead(500);
+        res.end(e.message);
+      }
+    }
+  });
+
+  const served = new Promise(resolve => {
+    server.on('listening', () => {
+      resolve({
+        serverPort,
+        server,
+        cleanup: async () => {
+          log("[cleanup] cleaning up http server...");
+          server.close(() => {
+            log("server successfully closed");
+          });
+        }
+      });
+    });
+  });
+
+  server.listen(serverPort);
+
+  return await served;
 }
