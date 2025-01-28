@@ -27,7 +27,6 @@ pub enum Intrinsic {
     HasOwnProperty,
     I32ToF32,
     I64ToF64,
-    Imports,
     InstantiateCore,
     IsLE,
     ResourceTableFlag,
@@ -400,8 +399,6 @@ pub fn render_intrinsics(
             Intrinsic::I64ToF64 => output.push_str("
                 const i64ToF64 = i => (i64ToF64I[0] = i, i64ToF64F[0]);
             "),
-
-            Intrinsic::Imports => {},
 
             Intrinsic::InstantiateCore => if !instantiation {
                 output.push_str("
@@ -882,7 +879,6 @@ impl Intrinsic {
             Intrinsic::HasOwnProperty => "hasOwnProperty",
             Intrinsic::I32ToF32 => "i32ToF32",
             Intrinsic::I64ToF64 => "i64ToF64",
-            Intrinsic::Imports => "imports",
             Intrinsic::InstantiateCore => "instantiateCore",
             Intrinsic::IsLE => "isLE",
             Intrinsic::ResourceCallBorrows => "resourceCallBorrows",
