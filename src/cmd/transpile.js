@@ -200,8 +200,9 @@ export async function transpileComponent (component, opts = {}) {
   let spinner;
   const showSpinner = getShowSpinner();
 
-  if (opts.optimize) {
+  if (opts.optimize || opts.asyncMode === 'asyncify') {
     if (showSpinner) setShowSpinner(true);
+    opts.asyncify = opts.asyncMode === 'asyncify';
     ({ component } = await optimizeComponent(component, opts));
   }
 

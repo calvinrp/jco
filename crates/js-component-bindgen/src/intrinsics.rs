@@ -25,6 +25,7 @@ pub enum Intrinsic {
     I64ToF64,
     InstantiateCore,
     IsLE,
+    Promising,
     ResourceTableFlag,
     ResourceTableCreateBorrow,
     ResourceTableCreateOwn,
@@ -35,6 +36,7 @@ pub enum Intrinsic {
     ResourceTransferBorrow,
     ResourceTransferBorrowValidLifting,
     ResourceTransferOwn,
+    Suspending,
     ScopeId,
     SymbolCabiDispose,
     SymbolCabiLower,
@@ -77,6 +79,7 @@ pub fn render_intrinsics(
     intrinsics: &mut BTreeSet<Intrinsic>,
     no_nodejs_compat: bool,
     instantiation: bool,
+    asyncify: bool,
 ) -> Source {
     let mut output = Source::default();
 
@@ -295,6 +298,39 @@ pub fn render_intrinsics(
                 const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
             "),
 
+            // TODO:
+            Intrinsic::Promising => if asyncify {
+                output.push_str("
+                    function promising(fn) {
+                        return async (...args) => {
+                            if (asyncifyModules.length === 0) {
+                                throw new Error(`none of the Wasm modules were processed with wasm-opt asyncify`);
+                            }
+                            asyncifyAssertNoneState();
+                            let result = fn(...args);
+                            while (asyncifyState() === 1) {
+                            asyncifyModules.forEach(({ instance }) => {
+                                instance.exports.asyncify_stop_unwind();
+                            });
+                            asyncifyResolved = await asyncifyPromise;
+                            asyncifyPromise = undefined;
+                            asyncifyAssertNoneState();
+                            asyncifyModules.forEach(({ instance, address }) => {
+                                instance.exports.asyncify_start_rewind(address);
+                            });
+                            result = fn(...args);
+                            }
+                            asyncifyAssertNoneState();
+                            return result;
+                        };
+                    }
+                ")
+            } else {
+                output.push_str("
+                    const promising = WebAssembly.promising;
+                ")
+            },
+
             Intrinsic::ResourceCallBorrows => output.push_str("let resourceCallBorrows = [];"),
 
             // 
@@ -458,6 +494,34 @@ pub fn render_intrinsics(
                         return {rsc_table_create_own}(toTable, rep);
                     }}
                 "));
+            },
+
+            // TODO:
+            Intrinsic::Suspending => if asyncify {
+                output.push_str("
+                    function Suspending(fn) {
+                        return (...args) => {
+                            if (asyncifyState() === 2) {
+                            asyncifyModules.forEach(({ instance }) => {
+                                instance.exports.asyncify_stop_rewind();
+                            });
+                            const ret = asyncifyResolved;
+                            asyncifyResolved = undefined;
+                            return ret;
+                            }
+                            asyncifyAssertNoneState();
+                            let value = fn(...args);
+                            asyncifyModules.forEach(({ instance, address }) => {
+                            instance.exports.asyncify_start_unwind(address);
+                            });
+                            asyncifyPromise = value;
+                        };
+                    }
+                ")
+            } else {
+                output.push_str("
+                    const Suspending = WebAssembly.Suspending;
+                ")
             },
 
             Intrinsic::SymbolCabiDispose => output.push_str("
@@ -674,6 +738,7 @@ impl Intrinsic {
             "imports",
             "instantiateCore",
             "isLE",
+            "promising",
             "resourceCallBorrows",
             "resourceTransferBorrow",
             "resourceTransferBorrowValidLifting",
@@ -683,6 +748,7 @@ impl Intrinsic {
             "rscTableGet",
             "rscTableRemove",
             "rscTableTryGet",
+            "Suspending",
             "scopeId",
             "symbolCabiDispose",
             "symbolCabiLower",
@@ -754,6 +820,7 @@ impl Intrinsic {
             Intrinsic::I64ToF64 => "i64ToF64",
             Intrinsic::InstantiateCore => "instantiateCore",
             Intrinsic::IsLE => "isLE",
+            Intrinsic::Promising => "promising",
             Intrinsic::ResourceCallBorrows => "resourceCallBorrows",
             Intrinsic::ResourceTableFlag => "T_FLAG",
             Intrinsic::ResourceTableCreateBorrow => "rscTableCreateBorrow",
@@ -764,6 +831,7 @@ impl Intrinsic {
             Intrinsic::ResourceTransferBorrow => "resourceTransferBorrow",
             Intrinsic::ResourceTransferBorrowValidLifting => "resourceTransferBorrowValidLifting",
             Intrinsic::ResourceTransferOwn => "resourceTransferOwn",
+            Intrinsic::Suspending => "Suspending",
             Intrinsic::ScopeId => "scopeId",
             Intrinsic::SymbolCabiDispose => "symbolCabiDispose",
             Intrinsic::SymbolCabiLower => "symbolCabiLower",
