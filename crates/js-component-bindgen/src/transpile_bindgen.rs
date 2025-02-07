@@ -808,6 +808,86 @@ impl<'a> Instantiator<'a, '_> {
     fn trampoline(&mut self, i: TrampolineIndex, trampoline: &'a Trampoline) {
         let i = i.as_u32();
         match trampoline {
+            Trampoline::TaskBackpressure { .. } => {}
+            Trampoline::TaskReturn { results } => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE TaskReturn results = {results:?}"
+                );
+            }
+            Trampoline::TaskWait { instance, async_, memory } => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE TaskWait instance = {instance:?}, async_ = {async_}, memory = {memory:?}
+                    // trampoline i = {i}
+                    "
+                );
+            }
+            Trampoline::TaskPoll { instance, async_, memory } => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE TaskPoll instance = {instance:?}, async_ = {async_}, memory = {memory:?}"
+                );
+            }
+            Trampoline::TaskYield { async_ } => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE TaskYield async_ = {async_}"
+                );
+            }
+            Trampoline::SubtaskDrop { instance } => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE SubtaskDrop instance = {instance:?}
+                    // trampoline i = {i}
+                    "
+                );
+            }
+            Trampoline::StreamNew { .. } => {}
+            Trampoline::StreamRead { .. } => {}
+            Trampoline::StreamWrite { .. } => {}
+            Trampoline::StreamCancelWrite { .. } => {}
+            Trampoline::StreamCloseReadable { .. } => {}
+            Trampoline::StreamCloseWritable { .. } => {}
+            Trampoline::StreamCancelRead { .. } => {}
+            Trampoline::FutureNew { .. } => {}
+            Trampoline::FutureRead { .. } => {}
+            Trampoline::FutureWrite { .. } => {}
+            Trampoline::FutureCancelRead { .. } => {}
+            Trampoline::FutureCancelWrite { .. } => {}
+            Trampoline::FutureCloseReadable { .. } => {}
+            Trampoline::FutureCloseWritable { .. } => {}
+            Trampoline::ErrorContextNew { .. } => {}
+            Trampoline::ErrorContextDrop { .. } => {}
+            Trampoline::ErrorContextDebugMessage { .. } => {}
+            Trampoline::ErrorContextTransfer { .. } => {}
+            Trampoline::SyncEnterCall => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE SyncEnterCall"
+                );
+            }
+            Trampoline::SyncExitCall { callback } => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE SyncExitCall callback = {callback:?}"
+                );
+            }
+            Trampoline::AsyncEnterCall { .. } => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE AsyncEnterCall"
+                );
+            }
+            Trampoline::AsyncExitCall { callback, post_return } => {
+                uwriteln!(
+                    self.src.js,
+                    "// HERE AsyncExitCall callback = {callback:?}, post_return = {post_return:?}"
+                );
+            }
+            Trampoline::FutureTransfer { .. } => {}
+            Trampoline::StreamTransfer { .. } => {}
+
             // these are hoisted before initialization
             Trampoline::LowerImport { .. } => {}
 
@@ -1001,6 +1081,8 @@ impl<'a> Instantiator<'a, '_> {
 
     fn instantiation_global_initializer(&mut self, init: &GlobalInitializer) {
         match init {
+            GlobalInitializer::ExtractCallback(..) => {}
+
             GlobalInitializer::InstantiateModule(m) => match m {
                 InstantiateModule::Static(idx, args) => self.instantiate_static_module(*idx, args),
                 // This is only needed when instantiating an imported core wasm
@@ -1707,9 +1789,9 @@ impl<'a> Instantiator<'a, '_> {
                 match abi {
                     AbiVariant::GuestExport => ErrHandling::ThrowResultErr,
                     AbiVariant::GuestImport => ErrHandling::ResultCatchHandler,
-                    AbiVariant::GuestImportAsync => todo!("async not yet implemented"),
-                    AbiVariant::GuestExportAsync => todo!("async not yet implemented"),
-                    AbiVariant::GuestExportAsyncStackful => todo!("async not yet implemented"),
+                    AbiVariant::GuestImportAsync => ErrHandling::ResultCatchHandler, // TODO: todo!("async not yet implemented"),
+                    AbiVariant::GuestExportAsync => ErrHandling::ThrowResultErr, // TODO: todo!("async not yet implemented"),
+                    AbiVariant::GuestExportAsyncStackful => ErrHandling::ThrowResultErr, // TODO: todo!("async not yet implemented"),
                 }
             } else {
                 ErrHandling::None
@@ -1743,9 +1825,9 @@ impl<'a> Instantiator<'a, '_> {
             match abi {
                 AbiVariant::GuestImport => LiftLower::LiftArgsLowerResults,
                 AbiVariant::GuestExport => LiftLower::LowerArgsLiftResults,
-                AbiVariant::GuestImportAsync => todo!("async not yet implemented"),
-                AbiVariant::GuestExportAsync => todo!("async not yet implemented"),
-                AbiVariant::GuestExportAsyncStackful => todo!("async not yet implemented"),
+                AbiVariant::GuestImportAsync => LiftLower::LiftArgsLowerResults, // TODO: todo!("async not yet implemented"),
+                AbiVariant::GuestExportAsync => LiftLower::LowerArgsLiftResults, // TODO: todo!("async not yet implemented"),
+                AbiVariant::GuestExportAsyncStackful => LiftLower::LowerArgsLiftResults, // TODO: todo!("async not yet implemented"),
             },
             func,
             &mut f,
@@ -2202,10 +2284,7 @@ fn map_import(map: &Option<HashMap<String, String>>, impt: &str) -> (String, Opt
 }
 
 pub fn parse_world_key(name: &str) -> Option<(&str, &str, &str)> {
-    let registry_idx = match name.find(':') {
-        Some(idx) => idx,
-        None => return None,
-    };
+    let registry_idx = name.find(':')?;
     let ns = &name[0..registry_idx];
     match name.rfind('/') {
         Some(sep_idx) => {

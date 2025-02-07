@@ -1048,7 +1048,11 @@ impl Bindgen for FunctionBindgen<'_> {
 
             Instruction::IterBasePointer => results.push("base".to_string()),
 
-            Instruction::CallWasm { sig, .. } => {
+            Instruction::CallWasm { name, sig, } => {
+                uwriteln!(
+                    self.src,
+                    "// HERE CallWasm name = {name}, sig = {sig:?}"
+                );
                 let sig_results_length = sig.results.len();
                 self.bind_results(sig_results_length, results);
                 let maybe_async_await = if self.is_async { "await " } else { "" };
@@ -1073,7 +1077,11 @@ impl Bindgen for FunctionBindgen<'_> {
                 }
             }
 
-            Instruction::CallInterface { func, .. } => {
+            Instruction::CallInterface { func, async_ } => {
+                uwriteln!(
+                    self.src,
+                    "// HERE CallInterface func = {func:?}, async_ = {async_}"
+                );
                 let results_length = func.results.len();
                 let maybe_async_await = if self.is_async { "await " } else { "" };
                 let call = if self.callee_resource_dynamic {
@@ -1527,14 +1535,23 @@ impl Bindgen for FunctionBindgen<'_> {
             }
 
             // TODO: implement async
+            Instruction::AsyncMalloc { size, align } => {
+                uwriteln!(self.src, "// HERE AsyncMalloc size = {size}, align = {align}");
+            }
+            Instruction::AsyncCallWasm { name, size, align } => {
+                uwriteln!(self.src, "// HERE AsyncCall name = {name}, size = {size}, align = {align}");
+            }
+            Instruction::AsyncPostCallInterface { func } => {
+                uwriteln!(self.src, "// HERE AsyncPostCallInterface func = {func:?}");
+            }
+            Instruction::AsyncCallReturn { name, params } => {
+                uwriteln!(self.src, "// HERE AsyncCallReturn name = {name}, params = {params:?}");
+            }
+
             Instruction::FutureLower { .. }
             | Instruction::FutureLift { .. }
             | Instruction::StreamLower { .. }
             | Instruction::StreamLift { .. }
-            | Instruction::AsyncMalloc { .. }
-            | Instruction::AsyncCallWasm { .. }
-            | Instruction::AsyncPostCallInterface { .. }
-            | Instruction::AsyncCallReturn { .. }
             | Instruction::ErrorContextLift { .. }
             | Instruction::ErrorContextLower { .. } => {
                 uwrite!(self.src, "throw new Error('async is not yet implemented');");
