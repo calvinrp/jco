@@ -1704,6 +1704,8 @@ impl<'a> Instantiator<'a, '_> {
                     self.connect_resource_types(*id, iface_ty, resource_map);
                 }
             }
+            (TypeDefKind::Future(_), _) => {}, // TODO:
+            (TypeDefKind::Stream(_), _) => {}, // TODO:
             (_, _) => unreachable!(),
         }
     }
@@ -1721,6 +1723,8 @@ impl<'a> Instantiator<'a, '_> {
         abi: AbiVariant,
         is_async: bool,
     ) {
+        uwriteln!(self.src.js, "// BINDGEN: opts = {opts:?}, func = {func:?}"); // TODO: HERE is the ASYNC
+
         let memory = opts.memory.map(|idx| format!("memory{}", idx.as_u32()));
         let realloc = opts.realloc.map(|idx| format!("realloc{}", idx.as_u32()));
         let post_return = opts
@@ -1789,9 +1793,9 @@ impl<'a> Instantiator<'a, '_> {
                 match abi {
                     AbiVariant::GuestExport => ErrHandling::ThrowResultErr,
                     AbiVariant::GuestImport => ErrHandling::ResultCatchHandler,
-                    AbiVariant::GuestImportAsync => ErrHandling::ResultCatchHandler, // TODO: todo!("async not yet implemented"),
-                    AbiVariant::GuestExportAsync => ErrHandling::ThrowResultErr, // TODO: todo!("async not yet implemented"),
-                    AbiVariant::GuestExportAsyncStackful => ErrHandling::ThrowResultErr, // TODO: todo!("async not yet implemented"),
+                    AbiVariant::GuestImportAsync => todo!("async not yet implemented"),
+                    AbiVariant::GuestExportAsync => todo!("async not yet implemented"),
+                    AbiVariant::GuestExportAsyncStackful => todo!("async not yet implemented"),
                 }
             } else {
                 ErrHandling::None
@@ -1825,9 +1829,9 @@ impl<'a> Instantiator<'a, '_> {
             match abi {
                 AbiVariant::GuestImport => LiftLower::LiftArgsLowerResults,
                 AbiVariant::GuestExport => LiftLower::LowerArgsLiftResults,
-                AbiVariant::GuestImportAsync => LiftLower::LiftArgsLowerResults, // TODO: todo!("async not yet implemented"),
-                AbiVariant::GuestExportAsync => LiftLower::LowerArgsLiftResults, // TODO: todo!("async not yet implemented"),
-                AbiVariant::GuestExportAsyncStackful => LiftLower::LowerArgsLiftResults, // TODO: todo!("async not yet implemented"),
+                AbiVariant::GuestImportAsync => todo!("async not yet implemented"),
+                AbiVariant::GuestExportAsync => todo!("async not yet implemented"),
+                AbiVariant::GuestExportAsyncStackful => todo!("async not yet implemented"),
             },
             func,
             &mut f,

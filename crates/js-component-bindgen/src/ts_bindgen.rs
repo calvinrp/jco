@@ -732,8 +732,8 @@ impl<'a> TsInterface<'a> {
                     }
                     TypeDefKind::Variant(_) => panic!("anonymous variant"),
                     TypeDefKind::List(v) => self.print_list(v),
-                    TypeDefKind::Future(_) => todo!("anonymous future"),
-                    TypeDefKind::Stream(_) => todo!("anonymous stream"),
+                    TypeDefKind::Future(_) => {}, // TODO: todo!("anonymous future"),
+                    TypeDefKind::Stream(_) => {}, // TODO: todo!("anonymous stream"),
                     TypeDefKind::Unknown => unreachable!(),
                     TypeDefKind::Resource => todo!(),
                     TypeDefKind::Handle(h) => {
