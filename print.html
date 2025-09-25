@@ -25,28 +25,41 @@
         <link rel="stylesheet" href="fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
 
-        <!-- Provide site root to javascript -->
+        <!-- Provide site root and default themes to javascript -->
         <script>
-            var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
-                var theme = localStorage.getItem('mdbook-theme');
-                var sidebar = localStorage.getItem('mdbook-sidebar');
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -60,7 +73,8 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-            var theme;
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             const html = document.documentElement;
@@ -73,17 +87,20 @@
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var sidebar = null;
-            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
+                sidebar_toggle.checked = false;
             }
-            sidebar_toggle.checked = sidebar === 'visible';
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
@@ -110,13 +127,14 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -136,7 +154,12 @@
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -600,75 +623,141 @@ export { test }
 }
 
 </style>
-<h1 id="example-workflow"><a class="header" href="#example-workflow">Example Workflow</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><style>
-.mdbook-alerts {
-  padding: 8px 16px;
-  margin-bottom: 16px;
-  border-left: 0.25em solid var(--mdbook-alerts-color);
+<h2 id="jco-example-workflow"><a class="header" href="#jco-example-workflow">Jco Example Workflow</a></h2>
+<p>Given an existing Wasm Component, <code>jco</code> provides the tooling necessary to work with this Component fully natively in JS.</p>
+<p>Jco also provides an experimental feature for generating components from JavaScript by wrapping <a href="https://github.com/bytecodealliance/ComponentizeJS">ComponentizeJS</a> in the <code>jco componentize</code> command.</p>
+<p>To demonstrate a full end-to-end component, we can create a JavaScript component embedding Spidermnokey then run it in JavaScript.</p>
+<h3 id="installing-jco"><a class="header" href="#installing-jco">Installing Jco</a></h3>
+<p>Either install Jco globally:</p>
+<pre><code class="language-shell">$ npm install -g @bytecodealliance/jco
+$ jco --version
+1.0.3
+</code></pre>
+<p>Or install it locally and use <code>npx</code> to run it:</p>
+<pre><code class="language-shell">$ npm install @bytecodealliance/jco
+$ npx jco --version
+1.0.3
+</code></pre>
+<p>Local usage can be preferable to ensure the project is reproducible and self-contained, but requires
+replacing all <code>jco</code> shell calls in the following example with either <code>./node_modules/.bin/jco</code> or <code>npx jco</code>.</p>
+<h3 id="installing-componentizejs"><a class="header" href="#installing-componentizejs">Installing ComponentizeJS</a></h3>
+<p>To use ComponentizeJS, it must be separately installed, globally or locally depending on whether Jco was installed globally or locally. Globally:</p>
+<pre><code class="language-shell">$ npm install -g @bytecodealliance/componentize-js
+</code></pre>
+<p>Or locally:</p>
+<pre><code class="language-shell">$ npm install @bytecodealliance/componentize-js
+</code></pre>
+<p>Now the <code>jco componentize</code> command will be ready to use.</p>
+<h3 id="creating-a-component-with-componentizejs"><a class="header" href="#creating-a-component-with-componentizejs">Creating a Component with ComponentizeJS</a></h3>
+<p>This Cowsay component uses the following WIT file (<a href="https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md">WIT</a> is the typing language used for defining Components):</p>
+<p>cowsay.wit</p>
+<pre><code class="language-wit">package local:cowsay;
+world cowsay {
+  export cow: interface {
+    enum cows {
+      default,
+      owl
+    }
+    say: func(text: string, cow: option&lt;cows&gt;) -&gt; string;
+  }
 }
+</code></pre>
+<p>We can implement this with the following JS:</p>
+<p>cowsay.js</p>
+<pre><code class="language-js">export const cow = {
+  say (text, cow = 'default') {
+    switch (cow) {
+      case 'default':
+return `${text}
+  \\   ^__^
+    \\  (oo)\\______
+      (__)\\      )\/\\
+          ||----w |
+          ||     ||
+`;
+      case 'owl':
+return `${text}
+   ___
+  (o o)
+ (  V  )
+/--m-m-
+`;
+    }
+  }
+};
+</code></pre>
+<p>To turn this into a component run:</p>
+<pre><code class="language-shell">$ jco componentize cowsay.js --wit cowsay.wit -o cowsay.wasm
 
-.mdbook-alerts > *:first-child {
-  margin-top: 0;
+OK Successfully written cowsay.wasm with imports ().
+</code></pre>
+<h3 id="inspecting-component-wit"><a class="header" href="#inspecting-component-wit">Inspecting Component WIT</a></h3>
+<p>As a first step, we might like to look instead this binary black box of a Component and see what it actually does.</p>
+<pre><code class="language-shell">$ jco wit cowsay.wasm
+package root:component;
+
+world root {
+  export cow: interface {
+    enum cows {
+      default,
+      owl,
+    }
+
+    say: func(text: string, cow: option&lt;cows&gt;) -&gt; string;
+  }
 }
+</code></pre>
+<h3 id="transpiling-to-js"><a class="header" href="#transpiling-to-js">Transpiling to JS</a></h3>
+<p>To execute the Component in a JS environment, use the <code>jco transpile</code> command to generate the JS for the Component:</p>
+<pre><code class="language-shell">$ jco transpile cowsay.wasm -o cowsay
 
-.mdbook-alerts > *:last-child {
-  margin-bottom: 0;
+Transpiled JS Component Files:
+
+ - cowsay/cowsay.core.wasm     7.61 MiB
+ - cowsay/cowsay.d.ts          0.07 KiB
+ - cowsay/cowsay.js            2.62 KiB
+ - cowsay/interfaces/cow.d.ts  0.21 KiB
+</code></pre>
+<p>Now the Component can be directly imported and used as an ES module:</p>
+<p>test.js</p>
+<pre><code class="language-js">import { cow } from './cowsay/cowsay.js';
+
+console.log(cow.say('Hello Wasm Components!'));
+</code></pre>
+<p>For Node.js to allow us to run native ES modules, we must first create or edit the local <code>package.json</code> file to include a <code>"type": "module"</code> field:</p>
+<p>package.json</p>
+<pre><code class="language-json">{
+  "type": "module"
 }
+</code></pre>
+<p>The above JavaScript can now be executed in Node.js:</p>
+<pre><code class="language-shell">$ node test.js
 
-.mdbook-alerts-title {
-  display: flex;
-  font-weight: 600;
-  align-items: center;
-  line-height: 1;
-  color: var(--mdbook-alerts-color);
-  text-transform: capitalize;
-}
+ Hello Wasm Components!
+  \   ^__^
+    \  (oo)\______
+      (__)\      )/\
+          ||----w |
+          ||     ||
+</code></pre>
+<p>Passing in the optional second parameter, we can change the cow:</p>
+<p>test.js</p>
+<pre><code class="language-js">import { cow } from './cowsay/cowsay.js';
 
-.mdbook-alerts-icon {
-  display: inline-block;
-  width: 1em;
-  height: 1em;
-  margin-right: 0.2em;
-  background-color: currentColor;
-  -webkit-mask: no-repeat center / 100%;
-  mask: no-repeat center / 100%;
-  -webkit-mask-image: var(--mdbook-alerts-icon);
-  mask-image: var(--mdbook-alerts-icon);
-}
+console.log(cow.say('Hello Wasm Components!', 'owl'));
+</code></pre>
+<pre><code class="language-shell">$ node test.js
 
-.mdbook-alerts-note {
-  --mdbook-alerts-color: rgb(9, 105, 218);
-  /* https://icon-sets.iconify.design/material-symbols/info-outline-rounded/ */
-  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 17q.425 0 .713-.288T13 16v-4q0-.425-.288-.712T12 11q-.425 0-.712.288T11 12v4q0 .425.288.713T12 17m0-8q.425 0 .713-.288T13 8q0-.425-.288-.712T12 7q-.425 0-.712.288T11 8q0 .425.288.713T12 9m0 13q-2.075 0-3.9-.788t-3.175-2.137q-1.35-1.35-2.137-3.175T2 12q0-2.075.788-3.9t2.137-3.175q1.35-1.35 3.175-2.137T12 2q2.075 0 3.9.788t3.175 2.137q1.35 1.35 2.138 3.175T22 12q0 2.075-.788 3.9t-2.137 3.175q-1.35 1.35-3.175 2.138T12 22m0-2q3.35 0 5.675-2.325T20 12q0-3.35-2.325-5.675T12 4Q8.65 4 6.325 6.325T4 12q0 3.35 2.325 5.675T12 20m0-8"%2F%3E%3C%2Fsvg%3E');
-}
-
-.mdbook-alerts-tip {
-  --mdbook-alerts-color: rgb(26, 127, 55);
-  /* https://icon-sets.iconify.design/material-symbols/lightbulb-outline-rounded/ */
-  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 22q-.825 0-1.412-.587T10 20h4q0 .825-.587 1.413T12 22m-3-3q-.425 0-.712-.288T8 18q0-.425.288-.712T9 17h6q.425 0 .713.288T16 18q0 .425-.288.713T15 19zm-.75-3q-1.725-1.025-2.738-2.75T4.5 9.5q0-3.125 2.188-5.312T12 2q3.125 0 5.313 2.188T19.5 9.5q0 2.025-1.012 3.75T15.75 16zm.6-2h6.3q1.125-.8 1.738-1.975T17.5 9.5q0-2.3-1.6-3.9T12 4Q9.7 4 8.1 5.6T6.5 9.5q0 1.35.613 2.525T8.85 14M12 14"%2F%3E%3C%2Fsvg%3E');
-}
-
-.mdbook-alerts-important {
-  --mdbook-alerts-color: rgb(130, 80, 223);
-  /* https://icon-sets.iconify.design/material-symbols/chat-info-outline-rounded/ */
-  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 7q.425 0 .713-.288T13 6q0-.425-.288-.712T12 5q-.425 0-.712.288T11 6q0 .425.288.713T12 7m0 8q.425 0 .713-.288T13 14v-4q0-.425-.288-.712T12 9q-.425 0-.712.288T11 10v4q0 .425.288.713T12 15m-6 3l-2.3 2.3q-.475.475-1.088.213T2 19.575V4q0-.825.588-1.412T4 2h16q.825 0 1.413.588T22 4v12q0 .825-.587 1.413T20 18zm-.85-2H20V4H4v13.125zM4 16V4z"%2F%3E%3C%2Fsvg%3E');
-}
-
-.mdbook-alerts-warning {
-  --mdbook-alerts-color: rgb(154, 103, 0);
-  /* https://icon-sets.iconify.design/material-symbols/warning-outline-rounded/ */
-  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M2.725 21q-.275 0-.5-.137t-.35-.363q-.125-.225-.137-.488t.137-.512l9.25-16q.15-.25.388-.375T12 3q.25 0 .488.125t.387.375l9.25 16q.15.25.138.513t-.138.487q-.125.225-.35.363t-.5.137zm1.725-2h15.1L12 6zM12 18q.425 0 .713-.288T13 17q0-.425-.288-.712T12 16q-.425 0-.712.288T11 17q0 .425.288.713T12 18m0-3q.425 0 .713-.288T13 14v-3q0-.425-.288-.712T12 10q-.425 0-.712.288T11 11v3q0 .425.288.713T12 15m0-2.5"%2F%3E%3C%2Fsvg%3E');
-}
-
-.mdbook-alerts-caution {
-  --mdbook-alerts-color: rgb(207, 34, 46);
-  /* https://icon-sets.iconify.design/material-symbols/brightness-alert-outline-rounded/ */
-  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 17q.425 0 .713-.288T13 16q0-.425-.288-.712T12 15q-.425 0-.712.288T11 16q0 .425.288.713T12 17m0-4q.425 0 .713-.288T13 12V8q0-.425-.288-.712T12 7q-.425 0-.712.288T11 8v4q0 .425.288.713T12 13m-3.35 7H6q-.825 0-1.412-.587T4 18v-2.65L2.075 13.4q-.275-.3-.425-.662T1.5 12q0-.375.15-.737t.425-.663L4 8.65V6q0-.825.588-1.412T6 4h2.65l1.95-1.925q.3-.275.663-.425T12 1.5q.375 0 .738.15t.662.425L15.35 4H18q.825 0 1.413.588T20 6v2.65l1.925 1.95q.275.3.425.663t.15.737q0 .375-.15.738t-.425.662L20 15.35V18q0 .825-.587 1.413T18 20h-2.65l-1.95 1.925q-.3.275-.662.425T12 22.5q-.375 0-.737-.15t-.663-.425zm.85-2l2.5 2.5l2.5-2.5H18v-3.5l2.5-2.5L18 9.5V6h-3.5L12 3.5L9.5 6H6v3.5L3.5 12L6 14.5V18zm2.5-6"%2F%3E%3C%2Fsvg%3E');
-}
-
-</style>
-<h1 id="contributor-guide"><a class="header" href="#contributor-guide">Contributor Guide</a></h1>
+ Hello Wasm Components!
+   ___
+  (o o)
+ (  V  )
+/--m-m-
+</code></pre>
+<p>It can also be executed in a browser via a module script:</p>
+<pre><code class="language-html">&lt;script type="module" src="test.js"&gt;&lt;/script&gt;
+</code></pre>
+<p>There are a number of custom transpilation options available, detailed in the <a href="https://github.com/bytecodealliance/jco?tab=readme-ov-file#api">API section</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><style>
 .mdbook-alerts {
   padding: 8px 16px;
@@ -961,7 +1050,7 @@ Alternative variant members may hold <em>different</em> types to represent diffe
 }
 </code></pre>
 <h3 id="jco-representation"><a class="header" href="#jco-representation">Jco Representation</a></h3>
-<p>Jco represents variants as objects with a <code>tag</code> that represents the variant, and <code>data</code> that represent the content:</p>
+<p>Jco represents variants as objects with a <code>tag</code> that represents the variant, and <code>val</code> that represents the content:</p>
 <p>For example, pseudo Typescript for the of the above <code>filter</code> variant would look like the following:</p>
 <pre><code class="language-ts">// Filter with all
 {
@@ -976,7 +1065,7 @@ Alternative variant members may hold <em>different</em> types to represent diffe
 // Filter with some and a list of strings
 {
   tag: 'some';
-  data: string[];
+  val: string[];
 }
 </code></pre>
 <div class="mdbook-alerts mdbook-alerts-note">
@@ -1021,8 +1110,8 @@ option&lt;string, u32&gt;
 <h3 id="jco-representation-2"><a class="header" href="#jco-representation-2">Jco Representation</a></h3>
 <p>Jco represents options as an optional value or undefined, so some examples:</p>
 <div class="table-wrapper"><table><thead><tr><th>Type</th><th>Representation (TS)</th><th>Example</th></tr></thead><tbody>
-<tr><td><code>option&lt;u32&gt;</code></td><td>`number</td><td>undefined`</td></tr>
-<tr><td><code>option&lt;option&lt;u32&gt;&gt;</code></td><td>`{ tag: "some"</td><td>"none", val: number }`</td></tr>
+<tr><td><code>option&lt;u32&gt;</code></td><td><code>number | undefined</code></td><td><code>option&lt;u32&gt;</code> -&gt; <code>number | undefined</code></td></tr>
+<tr><td><code>option&lt;option&lt;u32&gt;&gt;</code></td><td><code>{ tag: "some" | "none", val: number }</code></td><td><code>option&lt;u32&gt;</code> -&gt; <code>number | undefined</code></td></tr>
 </tbody></table>
 </div><div class="mdbook-alerts mdbook-alerts-warning">
 <p class="mdbook-alerts-title">
@@ -1079,11 +1168,14 @@ the <code>result</code> is used, Jco adheres to that representations.</p>
 </code></pre>
 <p>While JS automatically converts numbers, we must be careful to not attempt passing a number
 that would <em>not</em> fit in a <code>u32</code> (unsigned 32 bit integer) via WebAssembly.</p>
-<blockquote>
-<p>[NOTE]
-How JS treats large numbers is not in focus here, but it is worth noting that
+<div class="mdbook-alerts mdbook-alerts-note">
+<p class="mdbook-alerts-title">
+  <span class="mdbook-alerts-icon"></span>
+  note
+</p>
+<p>How JS treats large numbers is not in focus here, but it is worth noting that
 <code>Number.MAX_VALUE + Number.MAX_VALUE === Infinity</code>.</p>
-</blockquote>
+</div>
 <h3 id="typescript-schema"><a class="header" href="#typescript-schema">Typescript Schema</a></h3>
 <pre><code>type Result&lt;T,E&gt; = { tag: 'ok', val: T } | { tag: 'err', val: E };
 </code></pre>
@@ -1282,7 +1374,141 @@ list&lt;string&gt;
 }
 
 </style>
-<h1 id="contributor-guide-1"><a class="header" href="#contributor-guide-1">Contributor Guide</a></h1>
+<h1 id="manual-wasm-instantiation-with-wasi-overrides"><a class="header" href="#manual-wasm-instantiation-with-wasi-overrides">Manual Wasm instantiation with WASI Overrides</a></h1>
+<p>When a Wasm component depends on functionality provided by WASI, the <code>jco transpile</code> produces a WebAssembly
+module that can be loaded from NodeJS or the Browser that includes usages of unresolved imports like <code>wasi:random/random</code>.</p>
+<div class="mdbook-alerts mdbook-alerts-note">
+<p class="mdbook-alerts-title">
+  <span class="mdbook-alerts-icon"></span>
+  note
+</p>
+<p>Normally, WASI imports that need to be sourced from elsewhere would be <em>mapped</em>, using the
+<code>--map</code> option to <code>jco transpile</code>.</p>
+<p>These instructions are for when mapping is insufficient or implementations must be redirected
+or changed at instantiation time.</p>
+</div>
+<p>A common usage of transpilation is to map the imports to a known package, like <a href="https://www.npmjs.com/package/@bytecodealliance/preview2-shim"><code>@bytecodealliance/preview2-shim</code></a>:</p>
+<pre><code class="language-console">jco transpile \
+    component.wasm \
+    --output dist/transpiled \
+    --map wasi:cli/*@0.2.0=@bytecodealliance/preview2-shim/cli#*
+</code></pre>
+<div class="mdbook-alerts mdbook-alerts-note">
+<p class="mdbook-alerts-title">
+  <span class="mdbook-alerts-icon"></span>
+  note
+</p>
+<p>For more information, see the <a href="./transpiling.html#map-configuration">Map Configuration section of the Transpiling documentation</a></p>
+</div>
+<p>Sometimes you may want to use <em>your own</em> implementation of WASI interfaces (whether partial or complete),
+known/resolved only at instantiation time.</p>
+<h2 id="manual-instantiation-of-a-transpiled-component-with-no-overrides"><a class="header" href="#manual-instantiation-of-a-transpiled-component-with-no-overrides">Manual instantiation of a transpiled component with no overrides</a></h2>
+<p>To use custom instantiations, in NodeJS we must build with the <code>async</code> instantiation mode:</p>
+<pre><code class="language-console">jco transpile \
+    component.wasm \
+    --instantiation async \
+    --output dist/transpiled
+</code></pre>
+<p>We can instantiate the WebAssembly component for use with <em>no</em> custom overrides
+(i.e. the default WASI implementations provided by <code>preview2-shim</code>):</p>
+<pre><code class="language-js">import { WASIShim } from "@bytecodealliance/preview2-shim/instantiation";
+
+async function main() {
+    const wasmESModule = await import("path/to/transpiled/component.js");
+    const loader = async (path) =&gt; {
+      const buf = await readFile(`./dist/transpiled/${path}`);
+      return await WebAssembly.compile(buf.buffer);
+    };
+    const component = wasmESModule.instantiate(loader, new WASIShim().getImportObject());
+    // TODO: add code that utilizes the component's exports
+}
+
+await main();
+</code></pre>
+<div class="mdbook-alerts mdbook-alerts-note">
+<p class="mdbook-alerts-title">
+  <span class="mdbook-alerts-icon"></span>
+  note
+</p>
+<p>When dealing with browser environments, the <code>loader</code> function is not necessary, and <code>null</code>/<code>undefined</code> can be used.</p>
+</div>
+<p>This is identical to mapping all imports to those provided by <a href="https://www.npmjs.com/package/@bytecodealliance/preview2-shim"><code>@bytecodealliance/preview2-shim</code></a>.</p>
+<h2 id="manual-instantiation-of-a-transpiled-component-with-custom-overrides"><a class="header" href="#manual-instantiation-of-a-transpiled-component-with-custom-overrides">Manual instantiation of a transpiled component with custom overrides</a></h2>
+<p>To use custom component overrides in addition to the WASI imports provided by <code>preview2-shim</code>,
+as before build the component with the <code>async</code> instantiation mode:</p>
+<pre><code class="language-console">jco transpile \
+    component.wasm \
+    --instsantiation async \
+    --output dist/transpiled \
+    --map wasi:cli/*@0.2.0=@bytecodealliance/preview2-shim/cli#*
+</code></pre>
+<p>Then write an ES Module like the following:</p>
+<pre><code class="language-js">import { readFile } from "node:fs/promises";
+
+import { random } from "@bytecodealliance/preview2-shim";
+import { WASIShim } from "@bytecodealliance/preview2-shim/instantiation";
+
+async function main() {
+  /// Load the ES module generated by `jco transpile`
+  const wasmESModule = await import("./dist/transpiled/component.js");
+
+  // Build a customized WASI shim by mizing custom implementations
+  // and the provided implementation
+  const customShim = new WASIShim({
+    random: {
+      // For these two interfaces we re-use the default provided shim
+      random: random.random,
+      "insecure-seed": random.insecureSeed,
+      // For insecure, we can supply our own custom implementation
+      // (in this case, one that is *VERY* insecure)
+      insecure: {
+        getInsecureRandomBytes: (len) =&gt; {
+          return new Uint8Array(Number(len)).fill(0);
+        },
+        getInsecureRandomU64: () =&gt; 42n,
+      },
+    },
+  });
+
+  const loader = async (path) =&gt; {
+    const buf = await readFile(`./dist/transpiled/${path}`);
+    return await WebAssembly.compile(buf.buffer);
+  };
+
+  // Instantiate the Wasm component's ES module
+  const component = await wasmESModule.instantiate(
+    loader,
+    customShim.getImportObject(),
+  );
+
+  // TODO: add code to utilize the component exports
+}
+
+await main();
+</code></pre>
+<p>Using <code>WASIShim</code>, you can generate your own custom implementations of WASI, making use of
+the published shims where necessary.</p>
+<h2 id="versioned-imports-with-wasishim"><a class="header" href="#versioned-imports-with-wasishim">Versioned imports with <code>WASIShim</code></a></h2>
+<p>You can also use verisons with the import objects produced by <code>WASIShim</code>:</p>
+<pre><code class="language-typescript">import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation';
+import type {
+    VersionedWASIImportObject,
+    WASIImportObject,
+} from '@bytecodealliance/preview2-shim/instantiation';
+
+const shim = new WASIShim();
+
+const unversioned: WASIImportObject = shim.getImportObject();
+// console.log('unversioned', unversioned);
+unversioned satisfies WASIImportObject;
+unversioned satisfies VersionedWASIImportObject&lt;''&gt;;
+
+const versioned: VersionedWASIImportObject&lt;'0.2.3'&gt; = shim.getImportObject({
+    asVersion: '0.2.3',
+});
+//console.log('versioned', versioned);
+versioned satisfies VersionedWASIImportObject&lt;'0.2.3'&gt;;
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><style>
 .mdbook-alerts {
   padding: 8px 16px;
@@ -1351,9 +1577,11 @@ list&lt;string&gt;
 
 </style>
 <h1 id="contributing-to-the-codebase"><a class="header" href="#contributing-to-the-codebase">Contributing to the Codebase</a></h1>
-<p>Development is based on a standard <code>npm install &amp;&amp; npm run build &amp;&amp; npm run test</code> workflow.</p>
-<p>Tests can be run without bundling via <code>npm run build:dev &amp;&amp; npm run test:dev</code>.</p>
-<p>Specific tests can be run adding the mocha <code>--grep</code> / <code>-g</code> flag, for example: <code>npm run test:dev -- --grep exports_only</code>.</p>
+<p>Development is based on a standard NodeJS workflow, i.e.:</p>
+<pre><code class="language-console">npm install
+npm run build
+npm run test
+</code></pre>
 <h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
 <p>Required prerequisites for building jco include:</p>
 <ul>
@@ -1376,7 +1604,11 @@ rustup target add wasm32-wasi
 <li><code>src/api.js</code>: The jco API which can be used as a library dependency on npm. Published as https://npmjs.org/package/@bytecodealliance/jco.</li>
 <li><code>src/jco.js</code>: The jco CLI. Published as https://npmjs.org/package/@bytecodealliance/jco.</li>
 <li><code>packages/preview2-shim</code>: The WASI Preview2 host implementations for Node.js &amp; browsers. Published as https://www.npmjs.com/package/@bytecodealliance/preview2-shim.</li>
+<li><code>packages/preview3-shim</code>: The WASI Preview3 host implementations for Node.js</li>
 </ul>
+<h3 id="files-that-should-be-checked-in"><a class="header" href="#files-that-should-be-checked-in">Files that should be checked in</a></h3>
+<p>The repository is for project related code only -- avoid checking in files related to specific platforms or IDEs. One off configuration and/or secrets should of course not be checked in either.</p>
+<p>If there is information/configuration that is important for users or developers to see, include them in documentation and/or examples with appropriate context/explanation.</p>
 <h2 id="building"><a class="header" href="#building">Building</a></h2>
 <p>To build jco, run:</p>
 <pre><code>npm install
@@ -1387,9 +1619,78 @@ npm run build
 <ul>
 <li><code>npm run test</code>: Project-level transpilation, CLI &amp; API tests.</li>
 <li><code>npm run test --workspace packages/preview2-shim</code>: <code>preview2-shim</code> unit tests.</li>
+<li><code>npm run test --workspace packages/preview3-shim</code>: <code>preview3-shim</code> unit tests.</li>
 <li><code>test/browser.html</code>: Bare-minimum browser validation test.</li>
 <li><code>cargo test</code>: Wasmtime preview2 conformance tests (not currently passing).</li>
 </ul>
+<div class="mdbook-alerts mdbook-alerts-warning">
+<p class="mdbook-alerts-title">
+  <span class="mdbook-alerts-icon"></span>
+  warning
+</p>
+<p>Generally, when running <code>jco</code> tests, you will want to build the project <em>first</em> during a test run,
+to ensure the latest version of Rust code (i.e. <code>js-component-bindgen</code> is in use):</p>
+<pre><code>cd packages/jco
+npm run build &amp;&amp; npm run test api.js
+</code></pre>
+<p>The command above runs a single test file -- the name of the file is relative to <code>packages/jco/test</code>.</p>
+</div>
+<h3 id="running-tests-without-bundling"><a class="header" href="#running-tests-without-bundling">Running tests without bundling</a></h3>
+<p>Tests can be run without bundling via <code>npm run build:dev &amp;&amp; npm run test:dev</code>.</p>
+<h3 id="running-specific-tests"><a class="header" href="#running-specific-tests">Running specific tests</a></h3>
+<p>JS tests are powered by <a href="https://vitest.dev"><code>vitest</code></a>, and a specific test suite can be run by passing
+the filename to <code>npm run test</code>:</p>
+<pre><code class="language-console">cd packages/jco
+npm run test runtime.js
+</code></pre>
+<p>For example, to run multiple tests in a given folder:</p>
+<pre><code class="language-console">cd packages/jco
+npm run test test/p3/*.js
+</code></pre>
+<h2 id="commits"><a class="header" href="#commits">Commits</a></h2>
+<p>Jco and related subprojects use <a href="https://www.conventionalcommits.org/en/v1.0.0/">Conventional Commits</a>.
+Using Conventional Commits helps the project maintain consistency in commit messages, and powers release
+automation.</p>
+<p>CI enforces that commits are structured in a conventional commit style (see <a href="https://github.com/bytecodealliance/jco/blob/main/commitlint.config.mjs"><code>commitlint.config.mjs</code></a>.
+Special care must also be taken to ensure PR titles are formatted in a way that matches conventional commits as well,
+when performing squash merges.</p>
+<p>The following types are valid:</p>
+<ul>
+<li><code>build</code></li>
+<li><code>chore</code></li>
+<li><code>ci</code></li>
+<li><code>debug</code></li>
+<li><code>docs</code></li>
+<li><code>feat</code></li>
+<li><code>fix</code></li>
+<li><code>perf</code></li>
+<li><code>refactor</code></li>
+<li><code>release</code></li>
+<li><code>revert</code></li>
+<li><code>style</code></li>
+<li><code>test</code></li>
+</ul>
+<p>The following project scopes are valid:</p>
+<ul>
+<li><code>jco</code></li>
+<li><code>p2-shim</code></li>
+<li><code>p3-shim</code></li>
+<li><code>bindgen</code></li>
+<li><code>transpile</code></li>
+</ul>
+<p>For changes made to projects in the repository to be included in releases, the appropriate project scope must be applied.</p>
+<p>Since changes that should be made to the repo may not always have a project-specific scope, the
+following scopes can be used as well:</p>
+<ul>
+<li><code>deps</code></li>
+<li><code>ci</code></li>
+<li><code>ops</code></li>
+</ul>
+<p>Here are a few example commit messages:</p>
+<pre><code>chore(jco): update componentize-js dependency to X.X.X
+</code></pre>
+<pre><code>feat(ci): add commitlint to actions workflows
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><style>
 .mdbook-alerts {
   padding: 8px 16px;
@@ -1518,6 +1819,7 @@ cd docs
             window.setTimeout(window.print, 100);
         });
         </script>
+
 
     </div>
     </body>

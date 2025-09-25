@@ -24,28 +24,41 @@
         <link rel="stylesheet" href="fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
 
-        <!-- Provide site root to javascript -->
+        <!-- Provide site root and default themes to javascript -->
         <script>
-            var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
-                var theme = localStorage.getItem('mdbook-theme');
-                var sidebar = localStorage.getItem('mdbook-sidebar');
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -59,7 +72,8 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-            var theme;
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             const html = document.documentElement;
@@ -72,17 +86,20 @@
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var sidebar = null;
-            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
+                sidebar_toggle.checked = false;
             }
-            sidebar_toggle.checked = sidebar === 'visible';
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
@@ -109,13 +126,14 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -129,13 +147,21 @@
                         <a href="https://github.com/bytecodealliance/jco" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
+                        <a href="https://github.com/bytecodealliance/jco/tree/main/docs/src/example.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
 
                     </div>
                 </div>
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -222,7 +248,141 @@
 }
 
 </style>
-<h1 id="example-workflow"><a class="header" href="#example-workflow">Example Workflow</a></h1>
+<h2 id="jco-example-workflow"><a class="header" href="#jco-example-workflow">Jco Example Workflow</a></h2>
+<p>Given an existing Wasm Component, <code>jco</code> provides the tooling necessary to work with this Component fully natively in JS.</p>
+<p>Jco also provides an experimental feature for generating components from JavaScript by wrapping <a href="https://github.com/bytecodealliance/ComponentizeJS">ComponentizeJS</a> in the <code>jco componentize</code> command.</p>
+<p>To demonstrate a full end-to-end component, we can create a JavaScript component embedding Spidermnokey then run it in JavaScript.</p>
+<h3 id="installing-jco"><a class="header" href="#installing-jco">Installing Jco</a></h3>
+<p>Either install Jco globally:</p>
+<pre><code class="language-shell">$ npm install -g @bytecodealliance/jco
+$ jco --version
+1.0.3
+</code></pre>
+<p>Or install it locally and use <code>npx</code> to run it:</p>
+<pre><code class="language-shell">$ npm install @bytecodealliance/jco
+$ npx jco --version
+1.0.3
+</code></pre>
+<p>Local usage can be preferable to ensure the project is reproducible and self-contained, but requires
+replacing all <code>jco</code> shell calls in the following example with either <code>./node_modules/.bin/jco</code> or <code>npx jco</code>.</p>
+<h3 id="installing-componentizejs"><a class="header" href="#installing-componentizejs">Installing ComponentizeJS</a></h3>
+<p>To use ComponentizeJS, it must be separately installed, globally or locally depending on whether Jco was installed globally or locally. Globally:</p>
+<pre><code class="language-shell">$ npm install -g @bytecodealliance/componentize-js
+</code></pre>
+<p>Or locally:</p>
+<pre><code class="language-shell">$ npm install @bytecodealliance/componentize-js
+</code></pre>
+<p>Now the <code>jco componentize</code> command will be ready to use.</p>
+<h3 id="creating-a-component-with-componentizejs"><a class="header" href="#creating-a-component-with-componentizejs">Creating a Component with ComponentizeJS</a></h3>
+<p>This Cowsay component uses the following WIT file (<a href="https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md">WIT</a> is the typing language used for defining Components):</p>
+<p>cowsay.wit</p>
+<pre><code class="language-wit">package local:cowsay;
+world cowsay {
+  export cow: interface {
+    enum cows {
+      default,
+      owl
+    }
+    say: func(text: string, cow: option&lt;cows&gt;) -&gt; string;
+  }
+}
+</code></pre>
+<p>We can implement this with the following JS:</p>
+<p>cowsay.js</p>
+<pre><code class="language-js">export const cow = {
+  say (text, cow = 'default') {
+    switch (cow) {
+      case 'default':
+return `${text}
+  \\   ^__^
+    \\  (oo)\\______
+      (__)\\      )\/\\
+          ||----w |
+          ||     ||
+`;
+      case 'owl':
+return `${text}
+   ___
+  (o o)
+ (  V  )
+/--m-m-
+`;
+    }
+  }
+};
+</code></pre>
+<p>To turn this into a component run:</p>
+<pre><code class="language-shell">$ jco componentize cowsay.js --wit cowsay.wit -o cowsay.wasm
+
+OK Successfully written cowsay.wasm with imports ().
+</code></pre>
+<h3 id="inspecting-component-wit"><a class="header" href="#inspecting-component-wit">Inspecting Component WIT</a></h3>
+<p>As a first step, we might like to look instead this binary black box of a Component and see what it actually does.</p>
+<pre><code class="language-shell">$ jco wit cowsay.wasm
+package root:component;
+
+world root {
+  export cow: interface {
+    enum cows {
+      default,
+      owl,
+    }
+
+    say: func(text: string, cow: option&lt;cows&gt;) -&gt; string;
+  }
+}
+</code></pre>
+<h3 id="transpiling-to-js"><a class="header" href="#transpiling-to-js">Transpiling to JS</a></h3>
+<p>To execute the Component in a JS environment, use the <code>jco transpile</code> command to generate the JS for the Component:</p>
+<pre><code class="language-shell">$ jco transpile cowsay.wasm -o cowsay
+
+Transpiled JS Component Files:
+
+ - cowsay/cowsay.core.wasm     7.61 MiB
+ - cowsay/cowsay.d.ts          0.07 KiB
+ - cowsay/cowsay.js            2.62 KiB
+ - cowsay/interfaces/cow.d.ts  0.21 KiB
+</code></pre>
+<p>Now the Component can be directly imported and used as an ES module:</p>
+<p>test.js</p>
+<pre><code class="language-js">import { cow } from './cowsay/cowsay.js';
+
+console.log(cow.say('Hello Wasm Components!'));
+</code></pre>
+<p>For Node.js to allow us to run native ES modules, we must first create or edit the local <code>package.json</code> file to include a <code>"type": "module"</code> field:</p>
+<p>package.json</p>
+<pre><code class="language-json">{
+  "type": "module"
+}
+</code></pre>
+<p>The above JavaScript can now be executed in Node.js:</p>
+<pre><code class="language-shell">$ node test.js
+
+ Hello Wasm Components!
+  \   ^__^
+    \  (oo)\______
+      (__)\      )/\
+          ||----w |
+          ||     ||
+</code></pre>
+<p>Passing in the optional second parameter, we can change the cow:</p>
+<p>test.js</p>
+<pre><code class="language-js">import { cow } from './cowsay/cowsay.js';
+
+console.log(cow.say('Hello Wasm Components!', 'owl'));
+</code></pre>
+<pre><code class="language-shell">$ node test.js
+
+ Hello Wasm Components!
+   ___
+  (o o)
+ (  V  )
+/--m-m-
+</code></pre>
+<p>It can also be executed in a browser via a module script:</p>
+<pre><code class="language-html">&lt;script type="module" src="test.js"&gt;&lt;/script&gt;
+</code></pre>
+<p>There are a number of custom transpilation options available, detailed in the <a href="https://github.com/bytecodealliance/jco?tab=readme-ov-file#api">API section</a>.</p>
 
                     </main>
 
@@ -232,7 +392,7 @@
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="#.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="optimized-host-bindings.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -246,7 +406,7 @@
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="#.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="optimized-host-bindings.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -270,6 +430,7 @@
         <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
+
 
 
     </div>
